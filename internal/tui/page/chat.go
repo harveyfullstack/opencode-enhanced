@@ -27,12 +27,16 @@ type chatPage struct {
 	session              session.Session
 	completionDialog     dialog.CompletionDialog
 	showCompletionDialog bool
+	history              []string
+	historyIndex         int
 }
 
 type ChatKeyMap struct {
 	ShowCompletionDialog key.Binding
 	NewSession           key.Binding
 	Cancel               key.Binding
+	HistoryUp            key.Binding
+	HistoryDown          key.Binding
 }
 
 var keyMap = ChatKeyMap{
@@ -47,6 +51,14 @@ var keyMap = ChatKeyMap{
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
+	),
+	HistoryUp: key.NewBinding(
+		key.WithKeys("up"),
+		key.WithHelp("up", "previous message"),
+	),
+	HistoryDown: key.NewBinding(
+		key.WithKeys("down"),
+		key.WithHelp("down", "next message"),
 	),
 }
 
@@ -100,13 +112,36 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		p.session = msg
+		p.history = msg.History
+		p.historyIndex = len(p.history)
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, keyMap.HistoryUp):
+			if p.historyIndex > 0 {
+				p.historyIndex--
+				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
+					Content: p.history[p.historyIndex],
+				}))
+			}
+		case key.Matches(msg, keyMap.HistoryDown):
+			if p.historyIndex < len(p.history)-1 {
+				p.historyIndex++
+				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
+					Content: p.history[p.historyIndex],
+				}))
+			} else if p.historyIndex == len(p.history)-1 {
+				p.historyIndex++
+				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
+					Content: "",
+				}))
+			}
 		case key.Matches(msg, keyMap.ShowCompletionDialog):
 			p.showCompletionDialog = true
 			// Continue sending keys to layout->chat
 		case key.Matches(msg, keyMap.NewSession):
 			p.session = session.Session{}
+			p.history = []string{}
+			p.historyIndex = 0
 			return p, tea.Batch(
 				p.clearSidebar(),
 				util.CmdHandler(chat.SessionClearedMsg{}),
@@ -154,7 +189,8 @@ func (p *chatPage) clearSidebar() tea.Cmd {
 
 func (p *chatPage) sendMessage(text string, attachments []message.Attachment) tea.Cmd {
 	var cmds []tea.Cmd
-	if p.session.ID == "" {
+	isNewSession := p.session.ID == ""
+	if isNewSession {
 		session, err := p.app.Sessions.Create(context.Background(), "New Session")
 		if err != nil {
 			return util.ReportError(err)
@@ -165,7 +201,18 @@ func (p *chatPage) sendMessage(text string, attachments []message.Attachment) te
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		cmds = append(cmds, util.CmdHandler(chat.SessionSelectedMsg(session)))
+	}
+
+	// Add to history
+	if len(p.history) == 0 || p.history[len(p.history)-1] != text {
+		p.history = append(p.history, text)
+		p.app.Sessions.CreateCommandHistory(context.Background(), p.session.ID, text)
+	}
+	p.historyIndex = len(p.history)
+
+	if isNewSession {
+		p.session.History = p.history
+		cmds = append(cmds, util.CmdHandler(chat.SessionSelectedMsg(p.session)))
 	}
 
 	_, err := p.app.CoderAgent.Run(context.Background(), p.session.ID, text, attachments...)

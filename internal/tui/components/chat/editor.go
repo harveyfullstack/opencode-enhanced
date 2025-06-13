@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,9 +30,7 @@ type editorCmp struct {
 	session      session.Session
 	textarea     textarea.Model
 	attachments  []message.Attachment
-	deleteMode   bool
-	history      []string
-	historyIndex int
+	deleteMode bool
 }
 
 type EditorKeyMaps struct {
@@ -145,23 +142,18 @@ func (m *editorCmp) send() tea.Cmd {
 	if value == "" {
 		return nil
 	}
-	// Add to history
-	if len(m.history) == 0 || m.history[len(m.history)-1] != value {
-		m.history = append(m.history, value)
-		m.app.Sessions.CreateCommandHistory(context.Background(), m.session.ID, value)
-	}
-	m.historyIndex = len(m.history)
-	return tea.Batch(
-		util.CmdHandler(SendMsg{
-			Text:        value,
-			Attachments: attachments,
-		}),
-	)
+	return util.CmdHandler(SendMsg{
+		Text:        value,
+		Attachments: attachments,
+	})
 }
 
 func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case SetEditorContentMsg:
+		m.textarea.SetValue(msg.Content)
+		m.textarea.SetCursor(len(msg.Content))
 	case dialog.ThemeChangedMsg:
 		m.textarea = CreateTextArea(&m.textarea)
 	case dialog.CompletionSelectedMsg:
@@ -173,8 +165,6 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelectedMsg:
 		if msg.ID != m.session.ID {
 			m.session = msg
-			m.history = m.session.History
-			m.historyIndex = len(m.history)
 		}
 		return m, nil
 	case dialog.AttachmentAddedMsg:
@@ -184,25 +174,6 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.attachments = append(m.attachments, msg.Attachment)
 	case tea.KeyMsg:
-		if key.Matches(msg, editorMaps.HistoryUp) {
-			if m.historyIndex > 0 {
-				m.historyIndex--
-				m.textarea.SetValue(m.history[m.historyIndex])
-				m.textarea.SetCursor(len(m.history[m.historyIndex]))
-			}
-			return m, nil
-		}
-		if key.Matches(msg, editorMaps.HistoryDown) {
-			if m.historyIndex < len(m.history)-1 {
-				m.historyIndex++
-				m.textarea.SetValue(m.history[m.historyIndex])
-				m.textarea.SetCursor(len(m.history[m.historyIndex]))
-			} else if m.historyIndex == len(m.history)-1 {
-				m.historyIndex++
-				m.textarea.SetValue("")
-			}
-			return m, nil
-		}
 		if key.Matches(msg, DeleteKeyMaps.AttachmentDeleteMode) {
 			m.deleteMode = true
 			return m, nil
@@ -352,9 +323,7 @@ func CreateTextArea(existing *textarea.Model) textarea.Model {
 func NewEditorCmp(app *app.App) tea.Model {
 	ta := CreateTextArea(nil)
 	return &editorCmp{
-		app:          app,
-		textarea:     ta,
-		history:      []string{},
-		historyIndex: 0,
+		app:      app,
+		textarea: ta,
 	}
 }

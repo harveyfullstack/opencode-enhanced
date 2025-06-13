@@ -23,6 +23,10 @@ type SessionSelectedMsg = session.Session
 
 type SessionClearedMsg struct{}
 
+type SetEditorContentMsg struct {
+	Content string
+}
+
 type EditorFocusMsg bool
 
 func header(width int) string {
