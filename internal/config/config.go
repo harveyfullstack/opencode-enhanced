@@ -105,6 +105,7 @@ const (
 )
 
 var defaultContextPaths = []string{
+	"$HOME/OpenCode.md",
 	".github/copilot-instructions.md",
 	".cursorrules",
 	".cursor/rules/",
@@ -116,7 +117,6 @@ var defaultContextPaths = []string{
 	"OpenCode.local.md",
 	"OPENCODE.md",
 	"OPENCODE.local.md",
-	"$HOME/OpenCode.md",
 }
 
 // Global configuration instance
