@@ -51,8 +51,10 @@ type Agent struct {
 
 // Provider defines configuration for an LLM provider.
 type Provider struct {
-	APIKey   string `json:"apiKey"`
-	Disabled bool   `json:"disabled"`
+	APIKey    string  `json:"apiKey"`
+	BaseURL   string  `json:"baseURL,omitempty"`
+	Temperature float32 `json:"temperature,omitempty"`
+	Disabled  bool    `json:"disabled"`
 }
 
 // Data defines storage configuration.
@@ -303,6 +305,12 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.summarizer.model", models.Gemini25)
 		viper.SetDefault("agents.task.model", models.Gemini25Flash)
 		viper.SetDefault("agents.title.model", models.Gemini25Flash)
+		if baseURL := os.Getenv("GEMINI_BASE_URL"); strings.TrimSpace(baseURL) != "" {
+			viper.SetDefault("providers.gemini.baseURL", baseURL)
+		}
+		if temperature := os.Getenv("GEMINI_TEMPERATURE"); strings.TrimSpace(temperature) != "" {
+			viper.SetDefault("providers.gemini.temperature", temperature)
+		}
 		return
 	}
 

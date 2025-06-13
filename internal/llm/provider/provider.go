@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/models"
 	"github.com/opencode-ai/opencode/internal/llm/tools"
 	"github.com/opencode-ai/opencode/internal/message"
@@ -100,10 +101,26 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderGemini:
-		clientOptions.geminiOptions = append(clientOptions.geminiOptions,
-			WithGeminiBaseURL("https://gem-spinner.deno.dev"),
-			WithGeminiTemperature(0),
-		)
+		cfg := config.Get()
+		providerCfg := cfg.Providers[models.ProviderGemini]
+
+		// Default to 0 if not set, matching previous behavior
+		temperature := providerCfg.Temperature
+		if providerCfg.Temperature == 0 && clientOptions.temperature != 0 { // if providerCfg.Temperature is not set, use clientOptions.temperature
+			temperature = clientOptions.temperature
+		}
+
+
+		geminiAPIOptions := []GeminiOption{
+			WithGeminiTemperature(temperature),
+		}
+
+		if providerCfg.BaseURL != "" {
+			geminiAPIOptions = append(geminiAPIOptions, WithGeminiBaseURL(providerCfg.BaseURL))
+		}
+
+		clientOptions.geminiOptions = append(clientOptions.geminiOptions, geminiAPIOptions...)
+
 		return &baseProvider[GeminiClient]{
 			options: clientOptions,
 			client:  newGeminiClient(clientOptions),
