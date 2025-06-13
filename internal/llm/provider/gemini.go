@@ -19,6 +19,7 @@ import (
 
 type geminiOptions struct {
 	disableCache bool
+	baseURL      string
 }
 
 type GeminiOption func(*geminiOptions)
@@ -37,7 +38,11 @@ func newGeminiClient(opts providerClientOptions) GeminiClient {
 		o(&geminiOpts)
 	}
 
-	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: opts.apiKey, Backend: genai.BackendGeminiAPI})
+	clientConfig := &genai.ClientConfig{APIKey: opts.apiKey, Backend: genai.BackendGeminiAPI}
+	if geminiOpts.baseURL != "" {
+		clientConfig.HTTPOptions.BaseURL = geminiOpts.baseURL
+	}
+	client, err := genai.NewClient(context.Background(), clientConfig)
 	if err != nil {
 		logging.Error("Failed to create Gemini client", "error", err)
 		return nil
@@ -460,6 +465,12 @@ func (g *geminiClient) usage(resp *genai.GenerateContentResponse) TokenUsage {
 func WithGeminiDisableCache() GeminiOption {
 	return func(options *geminiOptions) {
 		options.disableCache = true
+	}
+}
+
+func WithGeminiBaseURL(baseURL string) GeminiOption {
+	return func(options *geminiOptions) {
+		options.baseURL = baseURL
 	}
 }
 

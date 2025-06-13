@@ -99,6 +99,9 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderGemini:
+		clientOptions.geminiOptions = append(clientOptions.geminiOptions,
+			WithGeminiBaseURL("https://gem-spinner.deno.dev"),
+		)
 		return &baseProvider[GeminiClient]{
 			options: clientOptions,
 			client:  newGeminiClient(clientOptions),
@@ -233,3 +236,4 @@ func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 		options.bedrockOptions = bedrockOptions
 	}
 }
+
