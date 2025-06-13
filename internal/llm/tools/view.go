@@ -150,7 +150,7 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	// Check file size, but only if offset and limit are not set (i.e. we're trying to read the whole file)
 	if fileInfo.Size() > MaxReadSize && (params.Offset == 0 && params.Limit == 0) {
-		return NewTextErrorResponse(fmt.Sprintf("File is too large to read in whole. You must leverage the `offset` and `limit` parameters to read focused sections of this file",
+		return NewTextErrorResponse(fmt.Sprintf("File is too large to read in whole (%d bytes). Max allowed size is %d bytes. You must leverage the `offset` and `limit` parameters to read focused sections of this file",
 			fileInfo.Size(), MaxReadSize)), nil
 	}
 

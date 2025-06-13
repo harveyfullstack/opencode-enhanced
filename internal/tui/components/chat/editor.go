@@ -24,18 +24,22 @@ import (
 )
 
 type editorCmp struct {
-	width       int
-	height      int
-	app         *app.App
-	session     session.Session
-	textarea    textarea.Model
-	attachments []message.Attachment
-	deleteMode  bool
+	width        int
+	height       int
+	app          *app.App
+	session      session.Session
+	textarea     textarea.Model
+	attachments  []message.Attachment
+	deleteMode   bool
+	history      []string
+	historyIndex int
 }
 
 type EditorKeyMaps struct {
 	Send       key.Binding
 	OpenEditor key.Binding
+	HistoryUp  key.Binding
+	HistoryDown key.Binding
 }
 
 type bluredEditorKeyMaps struct {
@@ -57,6 +61,14 @@ var editorMaps = EditorKeyMaps{
 	OpenEditor: key.NewBinding(
 		key.WithKeys("ctrl+e"),
 		key.WithHelp("ctrl+e", "open editor"),
+	),
+	HistoryUp: key.NewBinding(
+		key.WithKeys("up"),
+		key.WithHelp("up", "previous message"),
+	),
+	HistoryDown: key.NewBinding(
+		key.WithKeys("down"),
+		key.WithHelp("down", "next message"),
 	),
 }
 
@@ -132,6 +144,11 @@ func (m *editorCmp) send() tea.Cmd {
 	if value == "" {
 		return nil
 	}
+	// Add to history
+	if len(m.history) == 0 || m.history[len(m.history)-1] != value {
+		m.history = append(m.history, value)
+	}
+	m.historyIndex = len(m.history)
 	return tea.Batch(
 		util.CmdHandler(SendMsg{
 			Text:        value,
@@ -163,6 +180,25 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.attachments = append(m.attachments, msg.Attachment)
 	case tea.KeyMsg:
+		if key.Matches(msg, editorMaps.HistoryUp) {
+			if m.historyIndex > 0 {
+				m.historyIndex--
+				m.textarea.SetValue(m.history[m.historyIndex])
+				m.textarea.SetCursor(len(m.history[m.historyIndex]))
+			}
+			return m, nil
+		}
+		if key.Matches(msg, editorMaps.HistoryDown) {
+			if m.historyIndex < len(m.history)-1 {
+				m.historyIndex++
+				m.textarea.SetValue(m.history[m.historyIndex])
+				m.textarea.SetCursor(len(m.history[m.historyIndex]))
+			} else if m.historyIndex == len(m.history)-1 {
+				m.historyIndex++
+				m.textarea.SetValue("")
+			}
+			return m, nil
+		}
 		if key.Matches(msg, DeleteKeyMaps.AttachmentDeleteMode) {
 			m.deleteMode = true
 			return m, nil
@@ -312,7 +348,9 @@ func CreateTextArea(existing *textarea.Model) textarea.Model {
 func NewEditorCmp(app *app.App) tea.Model {
 	ta := CreateTextArea(nil)
 	return &editorCmp{
-		app:      app,
-		textarea: ta,
+		app:          app,
+		textarea:     ta,
+		history:      []string{},
+		historyIndex: 0,
 	}
 }

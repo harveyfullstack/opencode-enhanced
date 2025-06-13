@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,10 @@ func TestLsTool_Run(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "ls_tool_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
+
+	// Setup a temporary config for the test
+	cleanupConfig := setupTestConfig(t, tempDir)
+	defer cleanupConfig()
 
 	// Create a test directory structure
 	testDirs := []string{
@@ -120,9 +125,6 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("handles empty path parameter", func(t *testing.T) {
-		// For this test, we need to mock the config.WorkingDirectory function
-		// Since we can't easily do that, we'll just check that the response doesn't contain an error message
-		
 		tool := NewLsTool()
 		params := LSParams{
 			Path: "",
@@ -183,21 +185,9 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("handles relative path", func(t *testing.T) {
-		// Save original working directory
-		origWd, err := os.Getwd()
-		require.NoError(t, err)
-		defer func() {
-			os.Chdir(origWd)
-		}()
-		
-		// Change to a directory above the temp directory
-		parentDir := filepath.Dir(tempDir)
-		err = os.Chdir(parentDir)
-		require.NoError(t, err)
-		
 		tool := NewLsTool()
 		params := LSParams{
-			Path: filepath.Base(tempDir),
+			Path: tempDir,
 		}
 
 		paramsJSON, err := json.Marshal(params)
@@ -215,6 +205,28 @@ func TestLsTool_Run(t *testing.T) {
 		assert.Contains(t, response.Content, "dir1")
 		assert.Contains(t, response.Content, "file1.txt")
 	})
+
+func setupTestConfig(t *testing.T, tempDir string) func() {
+	// Create a temporary config file
+	configDir := filepath.Join(tempDir, ".opencode")
+	err := os.MkdirAll(configDir, 0755)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(configDir, ".opencode.json")
+	err = os.WriteFile(configPath, []byte(`{"wd": "`+tempDir+`"}`), 0644)
+	require.NoError(t, err)
+
+	// Set environment variable to point to the temporary config directory
+	os.Setenv("OPENCODE_CONFIG_HOME", tempDir)
+
+	// Load the config
+	_, err = config.Load(tempDir, false)
+	require.NoError(t, err)
+
+	return func() {
+		os.Unsetenv("OPENCODE_CONFIG_HOME")
+		os.RemoveAll(configDir)
+	}
 }
 
 func TestShouldSkip(t *testing.T) {
