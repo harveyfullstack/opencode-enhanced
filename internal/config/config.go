@@ -116,6 +116,7 @@ var defaultContextPaths = []string{
 	"OpenCode.local.md",
 	"OPENCODE.md",
 	"OPENCODE.local.md",
+	"$HOME/OpenCode.md",
 }
 
 // Global configuration instance

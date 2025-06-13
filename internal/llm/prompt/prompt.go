@@ -95,7 +95,24 @@ func processContextPaths(workDir string, paths []string) string {
 					return nil
 				})
 			} else {
-				fullPath := filepath.Join(workDir, p)
+				var fullPath string
+				if strings.HasPrefix(p, "$HOME") {
+					homeDir, err := os.UserHomeDir()
+					if err != nil {
+						logging.Warn("could not get user home directory", "error", err)
+						return
+					}
+					fullPath = strings.Replace(p, "$HOME", homeDir, 1)
+				} else if strings.HasPrefix(p, "~/") {
+					homeDir, err := os.UserHomeDir()
+					if err != nil {
+						logging.Warn("could not get user home directory", "error", err)
+						return
+					}
+					fullPath = filepath.Join(homeDir, p[2:])
+				} else {
+					fullPath = filepath.Join(workDir, p)
+				}
 
 				// Check if we've already processed this file (case-insensitive)
 				processedMutex.Lock()
