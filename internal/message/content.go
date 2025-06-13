@@ -116,6 +116,7 @@ type Message struct {
 	Model     models.ModelID
 	CreatedAt int64
 	UpdatedAt int64
+	Hidden    bool
 }
 
 func (m *Message) Content() TextContent {

@@ -195,6 +195,9 @@ func (m *messagesCmp) renderView() {
 	for inx, msg := range m.messages {
 		switch msg.Role {
 		case message.User:
+			if msg.Hidden {
+				continue
+			}
 			if cache, ok := m.cachedContent[msg.ID]; ok && cache.width == m.width {
 				m.uiMessages = append(m.uiMessages, cache.content...)
 				continue

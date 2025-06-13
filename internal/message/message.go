@@ -14,9 +14,10 @@ import (
 )
 
 type CreateMessageParams struct {
-	Role  MessageRole
-	Parts []ContentPart
-	Model models.ModelID
+	Role   MessageRole
+	Parts  []ContentPart
+	Model  models.ModelID
+	Hidden bool
 }
 
 type Service interface {
@@ -70,6 +71,7 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 		Role:      string(params.Role),
 		Parts:     string(partsJSON),
 		Model:     sql.NullString{String: string(params.Model), Valid: true},
+		Hidden:    params.Hidden,
 	})
 	if err != nil {
 		return Message{}, err
@@ -157,6 +159,7 @@ func (s *service) fromDBItem(item db.Message) (Message, error) {
 		Model:     models.ModelID(item.Model.String),
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,
+		Hidden:    item.Hidden,
 	}, nil
 }
 

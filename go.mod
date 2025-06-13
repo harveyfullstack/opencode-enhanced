@@ -33,7 +33,11 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
-require modernc.org/sqlite v1.37.0 // indirect
+require (
+	entgo.io/ent v0.14.4 // indirect
+	github.com/sqlc-dev/sqlc v1.29.0 // indirect
+	modernc.org/sqlite v1.37.0 // indirect
+)
 
 require (
 	cloud.google.com/go v0.116.0 // indirect

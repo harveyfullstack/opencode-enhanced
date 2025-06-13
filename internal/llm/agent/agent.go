@@ -298,13 +298,15 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			}
 
 			// Prepend a new system message with the microagent context
-			systemMessage := message.Message{
-				Role: message.System,
-				Parts: []message.ContentPart{
-					message.TextContent{Text: fmt.Sprintf("# Microagent Context\n%s", strings.Join(microAgentContent, "\n"))},
-				},
+			hiddenMessage, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+				Role:  message.User,
+				Parts: []message.ContentPart{message.TextContent{Text: fmt.Sprintf("# Microagent Context\n%s", strings.Join(microAgentContent, "\n"))}},
+				Hidden: true,
+			})
+			if err != nil {
+				return a.err(fmt.Errorf("failed to create hidden message: %w", err))
 			}
-			msgs = append([]message.Message{systemMessage}, msgs...)
+			msgs = append(msgs, hiddenMessage)
 		}
 	}
 
