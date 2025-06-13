@@ -32,6 +32,8 @@ const (
 	AgentEventTypeError     AgentEventType = "error"
 	AgentEventTypeResponse  AgentEventType = "response"
 	AgentEventTypeSummarize AgentEventType = "summarize"
+
+	MaxToolUseRetries = 3
 )
 
 type AgentEvent struct {
@@ -271,6 +273,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
 
+	toolUseRetryCount := 0
 	for {
 		// Check for cancellation before each iteration
 		select {
@@ -289,11 +292,22 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 		logging.Info("Result", "message", agentMessage.FinishReason(), "toolResults", toolResults)
-		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
+		if agentMessage.FinishReason() == message.FinishReasonToolUse {
+			if toolResults == nil {
+				toolUseRetryCount++
+				if toolUseRetryCount > MaxToolUseRetries {
+					return a.err(fmt.Errorf("Tool use failed after %d retries with no results", MaxToolUseRetries))
+				}
+				logging.Info("Tool use indicated but no results returned, retrying...", "retryCount", toolUseRetryCount)
+				// Do not append agentMessage or toolResults to history, retry with same history
+				continue
+			}
 			// We are not done, we need to respond with the tool response
+			toolUseRetryCount = 0 // Reset retry count on successful tool use
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
 			continue
 		}
+		toolUseRetryCount = 0 // Reset retry count if not a tool use
 		return AgentEvent{
 			Type:    AgentEventTypeResponse,
 			Message: agentMessage,
