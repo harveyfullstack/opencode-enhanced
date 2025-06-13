@@ -267,35 +267,54 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 	}
 
-	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
+	// Find and apply microagents
+	finder, err := microagent.NewFinder()
+	if err != nil {
+		logging.Warn("could not create microagent finder", "error", err)
+	}
+
+	var allContent strings.Builder
+	allContent.WriteString(content)
+
+	if finder != nil {
+		// Check current message for new microagents
+		matchedAgents := finder.Find(content)
+		if len(matchedAgents) > 0 {
+			for _, agent := range matchedAgents {
+				logging.Info("Matched microagent", "agent", agent.Filepath, "triggers", agent.Frontmatter.Triggers)
+			}
+		}
+
+		// Combine all microagents from history
+		var combinedAgents []microagent.Microagent
+		for _, msg := range msgs {
+			if msg.Role == message.User {
+				combinedAgents = append(combinedAgents, finder.Find(msg.Content().String())...)
+			}
+		}
+		combinedAgents = append(combinedAgents, matchedAgents...)
+
+		// Get unique agents
+		uniqueAgents := make(map[string]microagent.Microagent)
+		for _, agent := range combinedAgents {
+			uniqueAgents[agent.Filepath] = agent
+		}
+
+		if len(uniqueAgents) > 0 {
+			allContent.WriteString("\n\n# Microagent Context\n")
+			for _, agent := range uniqueAgents {
+				allContent.WriteString(agent.Content)
+				allContent.WriteString("\n")
+			}
+		}
+	}
+
+	userMsg, err := a.createUserMessage(ctx, sessionID, allContent.String(), attachmentParts)
 	if err != nil {
 		return a.err(fmt.Errorf("failed to create user message: %w", err))
 	}
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
-
-	// Find and apply microagents
-	finder, err := microagent.NewFinder()
-	if err != nil {
-		logging.Warn("could not create microagent finder", "error", err)
-	} else {
-		matchedAgents := finder.Find(content)
-		if len(matchedAgents) > 0 {
-			var microAgentContent []string
-			for _, agent := range matchedAgents {
-				microAgentContent = append(microAgentContent, agent.Content)
-				logging.Info("Matched microagent", "agent", agent.Filepath, "triggers", agent.Frontmatter.Triggers)
-			}
-			// Prepend a new system message with the microagent context
-			systemMessage := message.Message{
-				Role: message.System,
-				Parts: []message.ContentPart{
-					message.TextContent{Text: fmt.Sprintf("# Microagent Context\n%s", strings.Join(microAgentContent, "\n"))},
-				},
-			}
-			msgHistory = append([]message.Message{systemMessage}, msgHistory...)
-		}
-	}
 
 	toolUseRetryCount := 0
 	for {
