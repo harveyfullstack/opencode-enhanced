@@ -292,21 +292,24 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 		logging.Info("Result", "message", agentMessage.FinishReason(), "toolResults", toolResults)
-		if agentMessage.FinishReason() == message.FinishReasonToolUse {
-			if toolResults == nil {
-				toolUseRetryCount++
-				if toolUseRetryCount > MaxToolUseRetries {
-					return a.err(fmt.Errorf("Tool use failed after %d retries with no results", MaxToolUseRetries))
-				}
-				logging.Info("Tool use indicated but no results returned, retrying...", "retryCount", toolUseRetryCount)
-				// Do not append agentMessage or toolResults to history, retry with same history
-				continue
+		// Retry if the model returns a tool use finish reason without any tools, or if it returns an empty response.
+		if toolResults == nil && (agentMessage.FinishReason() == message.FinishReasonToolUse || agentMessage.Content().Text == "") {
+			toolUseRetryCount++
+			if toolUseRetryCount > MaxToolUseRetries {
+				return a.err(fmt.Errorf("LLM failed after %d retries with no results", MaxToolUseRetries))
 			}
-			// We are not done, we need to respond with the tool response
+			logging.Info("LLM returned no results, retrying...", "retryCount", toolUseRetryCount)
+			continue
+		}
+
+		if agentMessage.FinishReason() == message.FinishReasonToolUse {
+			// We must have tool results here because of the check above.
 			toolUseRetryCount = 0 // Reset retry count on successful tool use
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
 			continue
 		}
+
+		// If we are here, it's a final response.
 		toolUseRetryCount = 0 // Reset retry count if not a tool use
 		return AgentEvent{
 			Type:    AgentEventTypeResponse,
