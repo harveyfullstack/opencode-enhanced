@@ -274,19 +274,12 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	}
 
 	if finder != nil {
-		// Combine all microagents from history
-		var combinedAgents []microagent.Microagent
-		for _, msg := range msgs {
-			if msg.Role == message.User {
-				combinedAgents = append(combinedAgents, finder.Find(msg.Content().String())...)
-			}
-		}
-		// Check current message for new microagents
-		combinedAgents = append(combinedAgents, finder.Find(content)...)
+		// Check current message for microagents.
+		triggeredAgents := finder.Find(content)
 
-		// Get unique agents
+		// Get unique agents to avoid duplicates if a keyword is mentioned multiple times.
 		uniqueAgents := make(map[string]microagent.Microagent)
-		for _, agent := range combinedAgents {
+		for _, agent := range triggeredAgents {
 			uniqueAgents[agent.Filepath] = agent
 		}
 
