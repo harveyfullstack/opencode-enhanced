@@ -63,6 +63,7 @@ to assist developers in writing, debugging, and understanding code directly from
 		prompt, _ := cmd.Flags().GetString("prompt")
 		outputFormat, _ := cmd.Flags().GetString("output-format")
 		quiet, _ := cmd.Flags().GetBool("quiet")
+		restoreLastSession, _ := cmd.Flags().GetBool("restore-last-session")
 
 		// Validate format option
 		if !format.IsValid(outputFormat) {
@@ -118,7 +119,7 @@ to assist developers in writing, debugging, and understanding code directly from
 		// Set up the TUI
 		zone.NewGlobal()
 		program := tea.NewProgram(
-			tui.New(app),
+			tui.New(app, restoreLastSession),
 			tea.WithAltScreen(),
 		)
 
@@ -301,6 +302,9 @@ func init() {
 
 	// Add quiet flag to hide spinner in non-interactive mode
 	rootCmd.Flags().BoolP("quiet", "q", false, "Hide spinner in non-interactive mode")
+
+	// Add restore-last-session flag
+	rootCmd.Flags().Bool("restore-last-session", false, "Restore the last session on startup")
 
 	// Register custom validation for the format flag
 	rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

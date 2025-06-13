@@ -138,10 +138,27 @@ type appModel struct {
 
 	isCompacting      bool
 	compactingMessage string
+
+	restoreLastSession bool
 }
 
 func (a appModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
+
+	if a.restoreLastSession {
+		cmds = append(cmds, func() tea.Msg {
+			sessions, err := a.app.Sessions.List(context.Background())
+			if err != nil {
+				return util.ReportError(err)
+			}
+
+			if len(sessions) > 0 {
+				return dialog.SessionSelectedMsg{Session: sessions[0]}
+			}
+			return nil
+		})
+	}
+
 	cmd := a.pages[a.currentPage].Init()
 	a.loadedPages[a.currentPage] = true
 	cmds = append(cmds, cmd)
@@ -898,7 +915,7 @@ func (a appModel) View() string {
 	return appView
 }
 
-func New(app *app.App) tea.Model {
+func New(app *app.App, restoreLastSession bool) tea.Model {
 	lipgloss.SetHasDarkBackground(true)
 	startPage := page.ChatPage
 	model := &appModel{
@@ -919,7 +936,8 @@ func New(app *app.App) tea.Model {
 			page.ChatPage: page.NewChatPage(app),
 			page.LogsPage: page.NewLogsPage(),
 		},
-		filepicker: dialog.NewFilepickerCmp(app),
+		filepicker:         dialog.NewFilepickerCmp(app),
+		restoreLastSession: restoreLastSession,
 	}
 
 	model.RegisterCommand(dialog.Command{
