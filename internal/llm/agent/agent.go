@@ -15,6 +15,7 @@ import (
 	"github.com/opencode-ai/opencode/internal/llm/tools"
 	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/message"
+	"github.com/opencode-ai/opencode/internal/microagent"
 	"github.com/opencode-ai/opencode/internal/permission"
 	"github.com/opencode-ai/opencode/internal/pubsub"
 	"github.com/opencode-ai/opencode/internal/session"
@@ -272,6 +273,29 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	}
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
+
+	// Find and apply microagents
+	finder, err := microagent.NewFinder()
+	if err != nil {
+		logging.Warn("could not create microagent finder", "error", err)
+	} else {
+		matchedAgents := finder.Find(content)
+		if len(matchedAgents) > 0 {
+			var microAgentContent []string
+			for _, agent := range matchedAgents {
+				microAgentContent = append(microAgentContent, agent.Content)
+				logging.Info("Matched microagent", "agent", agent.Filepath, "triggers", agent.Frontmatter.Triggers)
+			}
+			// Prepend a new system message with the microagent context
+			systemMessage := message.Message{
+				Role: message.System,
+				Parts: []message.ContentPart{
+					message.TextContent{Text: fmt.Sprintf("# Microagent Context\n%s", strings.Join(microAgentContent, "\n"))},
+				},
+			}
+			msgHistory = append([]message.Message{systemMessage}, msgHistory...)
+		}
+	}
 
 	toolUseRetryCount := 0
 	for {
