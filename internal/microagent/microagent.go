@@ -2,6 +2,7 @@ package microagent
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,14 +45,11 @@ func (f *Finder) loadMicroagents() error {
 		return nil
 	}
 
-	files, err := os.ReadDir(agentsDir)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") {
-			path := filepath.Join(agentsDir, file.Name())
+	return filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return err
@@ -64,8 +62,8 @@ func (f *Finder) loadMicroagents() error {
 			agent.Filepath = path
 			f.microagents = append(f.microagents, agent)
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func parseMicroagent(content []byte) (Microagent, error) {
