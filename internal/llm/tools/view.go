@@ -31,7 +31,7 @@ type ViewResponseMetadata struct {
 
 const (
 	ViewToolName     = "view"
-	MaxReadSize      = 250 * 1024
+	MaxReadSize      = 400 * 1024
 	DefaultReadLimit = 2000
 	MaxLineLength    = 2000
 	viewDescription  = `File viewing tool that reads and displays the contents of files with line numbers, allowing you to examine code, logs, or text data.
@@ -148,9 +148,9 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse(fmt.Sprintf("Path is a directory, not a file: %s", filePath)), nil
 	}
 
-	// Check file size
-	if fileInfo.Size() > MaxReadSize {
-		return NewTextErrorResponse(fmt.Sprintf("File is too large (%d bytes). Maximum size is %d bytes",
+	// Check file size, but only if offset and limit are not set (i.e. we're trying to read the whole file)
+	if fileInfo.Size() > MaxReadSize && (params.Offset == 0 && params.Limit == 0) {
+		return NewTextErrorResponse(fmt.Sprintf("File is too large to read in whole. You must leverage the `offset` and `limit` parameters to read focused sections of this file",
 			fileInfo.Size(), MaxReadSize)), nil
 	}
 
