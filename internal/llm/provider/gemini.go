@@ -20,6 +20,7 @@ import (
 type geminiOptions struct {
 	disableCache bool
 	baseURL      string
+	temperature  float32
 }
 
 type GeminiOption func(*geminiOptions)
@@ -187,6 +188,7 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 		SystemInstruction: &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
 		},
+		Temperature: genai.Ptr(g.options.temperature),
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -275,6 +277,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 		SystemInstruction: &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
 		},
+		Temperature: genai.Ptr(g.options.temperature),
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -459,6 +462,12 @@ func (g *geminiClient) usage(resp *genai.GenerateContentResponse) TokenUsage {
 		OutputTokens:        int64(resp.UsageMetadata.CandidatesTokenCount),
 		CacheCreationTokens: 0, // Not directly provided by Gemini
 		CacheReadTokens:     int64(resp.UsageMetadata.CachedContentTokenCount),
+	}
+}
+
+func WithGeminiTemperature(temperature float32) GeminiOption {
+	return func(options *geminiOptions) {
+		options.temperature = temperature
 	}
 }
 

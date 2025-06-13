@@ -63,6 +63,7 @@ type providerClientOptions struct {
 	model         models.Model
 	maxTokens     int64
 	systemMessage string
+	temperature   float32
 
 	anthropicOptions []AnthropicOption
 	openaiOptions    []OpenAIOption
@@ -101,6 +102,7 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 	case models.ProviderGemini:
 		clientOptions.geminiOptions = append(clientOptions.geminiOptions,
 			WithGeminiBaseURL("https://gem-spinner.deno.dev"),
+			WithGeminiTemperature(0),
 		)
 		return &baseProvider[GeminiClient]{
 			options: clientOptions,
@@ -187,6 +189,12 @@ func (p *baseProvider[C]) Model() models.Model {
 func (p *baseProvider[C]) StreamResponse(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
 	messages = p.cleanMessages(messages)
 	return p.client.stream(ctx, messages, tools)
+}
+
+func WithTemperature(temperature float32) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.temperature = temperature
+	}
 }
 
 func WithAPIKey(apiKey string) ProviderClientOption {
