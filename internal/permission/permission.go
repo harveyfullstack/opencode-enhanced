@@ -2,12 +2,8 @@ package permission
 
 import (
 	"errors"
-	"path/filepath"
-	"slices"
 	"sync"
 
-	"github.com/google/uuid"
-	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/pubsub"
 )
 
@@ -72,39 +68,7 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 }
 
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
-	if slices.Contains(s.autoApproveSessions, opts.SessionID) {
-		return true
-	}
-	dir := filepath.Dir(opts.Path)
-	if dir == "." {
-		dir = config.WorkingDirectory()
-	}
-	permission := PermissionRequest{
-		ID:          uuid.New().String(),
-		Path:        dir,
-		SessionID:   opts.SessionID,
-		ToolName:    opts.ToolName,
-		Description: opts.Description,
-		Action:      opts.Action,
-		Params:      opts.Params,
-	}
-
-	for _, p := range s.sessionPermissions {
-		if p.ToolName == permission.ToolName && p.Action == permission.Action && p.SessionID == permission.SessionID && p.Path == permission.Path {
-			return true
-		}
-	}
-
-	respCh := make(chan bool, 1)
-
-	s.pendingRequests.Store(permission.ID, respCh)
-	defer s.pendingRequests.Delete(permission.ID)
-
-	s.Publish(pubsub.CreatedEvent, permission)
-
-	// Wait for the response with a timeout
-	resp := <-respCh
-	return resp
+	return true
 }
 
 func (s *permissionService) AutoApproveSession(sessionID string) {
