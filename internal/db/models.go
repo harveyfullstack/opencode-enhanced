@@ -8,6 +8,14 @@ import (
 	"database/sql"
 )
 
+type CommandHistory struct {
+	ID          string `json:"id"`
+	SessionID   string `json:"session_id"`
+	CommandText string `json:"command_text"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
 type File struct {
 	ID        string `json:"id"`
 	SessionID string `json:"session_id"`

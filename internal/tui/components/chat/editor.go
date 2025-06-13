@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -147,6 +148,7 @@ func (m *editorCmp) send() tea.Cmd {
 	// Add to history
 	if len(m.history) == 0 || m.history[len(m.history)-1] != value {
 		m.history = append(m.history, value)
+		m.app.Sessions.CreateCommandHistory(context.Background(), m.session.ID, value)
 	}
 	m.historyIndex = len(m.history)
 	return tea.Batch(
@@ -171,6 +173,8 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelectedMsg:
 		if msg.ID != m.session.ID {
 			m.session = msg
+			m.history = m.session.History
+			m.historyIndex = len(m.history)
 		}
 		return m, nil
 	case dialog.AttachmentAddedMsg:
