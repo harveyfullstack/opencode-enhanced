@@ -19,7 +19,8 @@ import (
 type geminiOptions struct {
 	disableCache bool
 	baseURL      string
-	temperature  *float32
+	temperature   *float32
+	thinkingBudget *int32
 }
 
 type GeminiOption func(*geminiOptions)
@@ -195,6 +196,18 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 			Parts: []*genai.Part{{Text: systemContent.String()}},
 		},
 	}
+	if g.providerOptions.model.CanReason {
+		config.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: false,
+		}
+		if g.options.thinkingBudget != nil {
+			tb := *g.options.thinkingBudget
+			config.ThinkingConfig.ThinkingBudget = &tb
+		} else {
+			dtb := int32(g.providerOptions.model.DefaultThinkingBudget)
+			config.ThinkingConfig.ThinkingBudget = &dtb
+		}
+	}
 	if g.options.temperature != nil {
 		config.Temperature = g.options.temperature
 	}
@@ -292,6 +305,18 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 		SystemInstruction: &genai.Content{
 			Parts: []*genai.Part{{Text: systemContent.String()}},
 		},
+	}
+	if g.providerOptions.model.CanReason {
+		config.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: false,
+		}
+		if g.options.thinkingBudget != nil {
+			tb := *g.options.thinkingBudget
+			config.ThinkingConfig.ThinkingBudget = &tb
+		} else {
+			dtb := int32(g.providerOptions.model.DefaultThinkingBudget)
+			config.ThinkingConfig.ThinkingBudget = &dtb
+		}
 	}
 	if g.options.temperature != nil {
 		config.Temperature = g.options.temperature
@@ -497,6 +522,12 @@ func WithGeminiDisableCache() GeminiOption {
 func WithGeminiBaseURL(baseURL string) GeminiOption {
 	return func(options *geminiOptions) {
 		options.baseURL = baseURL
+	}
+}
+
+func WithGeminiThinkingBudget(budget int32) GeminiOption {
+	return func(options *geminiOptions) {
+		options.thinkingBudget = &budget
 	}
 }
 

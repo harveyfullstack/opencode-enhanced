@@ -773,7 +773,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 		opts = append(
 			opts,
 			provider.WithOpenAIOptions(
-				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
+				provider.WithReasoningEffort(string(agentConfig.ReasoningEffort)),
 			),
 		)
 	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
@@ -784,6 +784,18 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			),
 		)
 	}
+	if model.Provider == models.ProviderGemini {
+		geminiProviderOpts := []provider.GeminiOption{}
+		if model.CanReason {
+			budget := calculateThinkingBudget(agentConfig.ReasoningEffort, model)
+			geminiProviderOpts = append(geminiProviderOpts, provider.WithGeminiThinkingBudget(int32(budget)))
+		}
+		// Add other Gemini specific options here if needed in the future
+		if len(geminiProviderOpts) > 0 {
+			opts = append(opts, provider.WithGeminiOptions(geminiProviderOpts...))
+		}
+	}
+
 	agentProvider, err := provider.NewProvider(
 		model.Provider,
 		opts...,
@@ -793,4 +805,21 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	}
 
 	return agentProvider, nil
+}
+
+func calculateThinkingBudget(effort config.ReasoningEffort, model models.Model) int64 {
+	if !model.CanReason {
+		return 0
+	}
+
+	switch effort {
+	case config.ReasoningEffortLow:
+		return model.DefaultThinkingBudget / 2
+	case config.ReasoningEffortMedium:
+		return model.DefaultThinkingBudget
+	case config.ReasoningEffortHigh:
+		return model.MaxThinkingBudget
+	default:
+		return model.DefaultThinkingBudget
+	}
 }

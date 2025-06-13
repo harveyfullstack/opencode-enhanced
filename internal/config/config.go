@@ -42,11 +42,22 @@ const (
 	AgentTitle      AgentName = "title"
 )
 
+// ReasoningEffort defines the level of reasoning to use for a model.
+type ReasoningEffort string
+
+// Supported reasoning effort levels
+const (
+	ReasoningEffortDefault ReasoningEffort = ""
+	ReasoningEffortLow     ReasoningEffort = "low"
+	ReasoningEffortMedium  ReasoningEffort = "medium"
+	ReasoningEffortHigh    ReasoningEffort = "high"
+)
+
 // Agent defines configuration for different LLM models and their token limits.
 type Agent struct {
-	Model           models.ModelID `json:"model"`
-	MaxTokens       int64          `json:"maxTokens"`
-	ReasoningEffort string         `json:"reasoningEffort"` // For openai models low,medium,heigh
+	Model           models.ModelID    `json:"model"`
+	MaxTokens       int64             `json:"maxTokens"`
+	ReasoningEffort ReasoningEffort `json:"reasoningEffort,omitempty"` // low, medium, high
 }
 
 // Provider defines configuration for an LLM provider.
@@ -548,7 +559,7 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			cfg.Agents[name] = updatedAgent
 		} else {
 			// Check if reasoning effort is valid (low, medium, high)
-			effort := strings.ToLower(agent.ReasoningEffort)
+			effort := strings.ToLower(string(agent.ReasoningEffort))
 			if effort != "low" && effort != "medium" && effort != "high" {
 				logging.Warn("invalid reasoning effort, setting to medium",
 					"agent", name,
@@ -640,6 +651,7 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 
 // setDefaultModelForAgent sets a default model for an agent based on available providers
 func setDefaultModelForAgent(agent AgentName) bool {
+	existingAgentCfg := cfg.Agents[agent]
 	// Check providers in order of preference
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		maxTokens := int64(5000)
@@ -647,8 +659,9 @@ func setDefaultModelForAgent(agent AgentName) bool {
 			maxTokens = 80
 		}
 		cfg.Agents[agent] = Agent{
-			Model:     models.Claude37Sonnet,
-			MaxTokens: maxTokens,
+			Model:           models.Claude37Sonnet,
+			MaxTokens:       maxTokens,
+			ReasoningEffort: existingAgentCfg.ReasoningEffort,
 		}
 		return true
 	}
@@ -676,7 +689,7 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		cfg.Agents[agent] = Agent{
 			Model:           model,
 			MaxTokens:       maxTokens,
-			ReasoningEffort: reasoningEffort,
+			ReasoningEffort: ReasoningEffort(reasoningEffort),
 		}
 		return true
 	}
@@ -704,7 +717,7 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		cfg.Agents[agent] = Agent{
 			Model:           model,
 			MaxTokens:       maxTokens,
-			ReasoningEffort: reasoningEffort,
+			ReasoningEffort: ReasoningEffort(reasoningEffort),
 		}
 		return true
 	}
@@ -721,8 +734,9 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		}
 
 		cfg.Agents[agent] = Agent{
-			Model:     model,
-			MaxTokens: maxTokens,
+			Model:           model,
+			MaxTokens:       maxTokens,
+			ReasoningEffort: existingAgentCfg.ReasoningEffort,
 		}
 		return true
 	}
@@ -734,8 +748,9 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		}
 
 		cfg.Agents[agent] = Agent{
-			Model:     models.QWENQwq,
-			MaxTokens: maxTokens,
+			Model:           models.QWENQwq,
+			MaxTokens:       maxTokens,
+			ReasoningEffort: existingAgentCfg.ReasoningEffort,
 		}
 		return true
 	}
@@ -766,8 +781,9 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		}
 
 		cfg.Agents[agent] = Agent{
-			Model:     model,
-			MaxTokens: maxTokens,
+			Model:           model,
+			MaxTokens:       maxTokens,
+			ReasoningEffort: existingAgentCfg.ReasoningEffort,
 		}
 		return true
 	}
