@@ -273,18 +273,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		logging.Warn("could not create microagent finder", "error", err)
 	}
 
-	var allContent strings.Builder
-	allContent.WriteString(content)
-
 	if finder != nil {
-		// Check current message for new microagents
-		matchedAgents := finder.Find(content)
-		if len(matchedAgents) > 0 {
-			for _, agent := range matchedAgents {
-				logging.Info("Matched microagent", "agent", agent.Filepath, "triggers", agent.Frontmatter.Triggers)
-			}
-		}
-
 		// Combine all microagents from history
 		var combinedAgents []microagent.Microagent
 		for _, msg := range msgs {
@@ -292,7 +281,8 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 				combinedAgents = append(combinedAgents, finder.Find(msg.Content().String())...)
 			}
 		}
-		combinedAgents = append(combinedAgents, matchedAgents...)
+		// Check current message for new microagents
+		combinedAgents = append(combinedAgents, finder.Find(content)...)
 
 		// Get unique agents
 		uniqueAgents := make(map[string]microagent.Microagent)
@@ -301,15 +291,24 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 
 		if len(uniqueAgents) > 0 {
-			allContent.WriteString("\n\n# Microagent Context\n")
+			var microAgentContent []string
 			for _, agent := range uniqueAgents {
-				allContent.WriteString(agent.Content)
-				allContent.WriteString("\n")
+				microAgentContent = append(microAgentContent, agent.Content)
+				logging.Info("Matched microagent", "agent", agent.Filepath, "triggers", agent.Frontmatter.Triggers)
 			}
+
+			// Prepend a new system message with the microagent context
+			systemMessage := message.Message{
+				Role: message.System,
+				Parts: []message.ContentPart{
+					message.TextContent{Text: fmt.Sprintf("# Microagent Context\n%s", strings.Join(microAgentContent, "\n"))},
+				},
+			}
+			msgs = append([]message.Message{systemMessage}, msgs...)
 		}
 	}
 
-	userMsg, err := a.createUserMessage(ctx, sessionID, allContent.String(), attachmentParts)
+	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
 	if err != nil {
 		return a.err(fmt.Errorf("failed to create user message: %w", err))
 	}

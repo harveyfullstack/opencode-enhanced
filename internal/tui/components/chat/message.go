@@ -80,6 +80,10 @@ func renderMessage(msg string, isUser bool, isFocused bool, width int, info ...s
 }
 
 func renderUserMessage(msg message.Message, isFocused bool, width int, position int) uiMessage {
+	// Hide microagent context from the user
+	if strings.Contains(msg.Content().String(), "# Microagent Context") {
+		return uiMessage{}
+	}
 	var styledAttachments []string
 	t := theme.CurrentTheme()
 	attachmentStyles := styles.BaseStyle().

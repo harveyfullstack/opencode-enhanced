@@ -171,15 +171,28 @@ func (g *geminiClient) finishReason(reason genai.FinishReason) message.FinishRea
 }
 
 func (g *geminiClient) send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error) {
+	// Separate system messages from the rest of the history
+	var systemContent strings.Builder
+	systemContent.WriteString(g.providerOptions.systemMessage)
+	var historyMessages []message.Message
+	for _, msg := range messages {
+		if msg.Role == message.System {
+			systemContent.WriteString("\n")
+			systemContent.WriteString(msg.Content().String())
+		} else {
+			historyMessages = append(historyMessages, msg)
+		}
+	}
+
 	// Convert messages
-	geminiMessages := g.convertMessages(messages)
+	geminiMessages := g.convertMessages(historyMessages)
 
 	history := geminiMessages[:len(geminiMessages)-1] // All but last message
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 		SystemInstruction: &genai.Content{
-			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
+			Parts: []*genai.Part{{Text: systemContent.String()}},
 		},
 	}
 	if g.options.temperature != nil {
@@ -256,15 +269,28 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 }
 
 func (g *geminiClient) stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
+	// Separate system messages from the rest of the history
+	var systemContent strings.Builder
+	systemContent.WriteString(g.providerOptions.systemMessage)
+	var historyMessages []message.Message
+	for _, msg := range messages {
+		if msg.Role == message.System {
+			systemContent.WriteString("\n")
+			systemContent.WriteString(msg.Content().String())
+		} else {
+			historyMessages = append(historyMessages, msg)
+		}
+	}
+
 	// Convert messages
-	geminiMessages := g.convertMessages(messages)
+	geminiMessages := g.convertMessages(historyMessages)
 
 	history := geminiMessages[:len(geminiMessages)-1] // All but last message
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 		SystemInstruction: &genai.Content{
-			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
+			Parts: []*genai.Part{{Text: systemContent.String()}},
 		},
 	}
 	if g.options.temperature != nil {
