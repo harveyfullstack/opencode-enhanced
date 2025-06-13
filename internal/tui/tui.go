@@ -899,6 +899,7 @@ func (a appModel) View() string {
 }
 
 func New(app *app.App) tea.Model {
+	lipgloss.SetHasDarkBackground(true)
 	startPage := page.ChatPage
 	model := &appModel{
 		currentPage:   startPage,
