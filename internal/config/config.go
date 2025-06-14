@@ -729,7 +729,7 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		if agent == AgentTitle {
 			model = models.Gemini25Flash
 			maxTokens = 80
- else {
+ 		} else {
 			model = models.Gemini25Flash
 		}
 
