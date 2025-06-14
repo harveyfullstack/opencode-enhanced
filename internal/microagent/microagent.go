@@ -15,8 +15,15 @@ const (
 	microagentDir = ".opencode/microagents"
 )
 
+type TriggerExpression struct {
+	And []TriggerExpression `yaml:"and"`
+	Or  []TriggerExpression `yaml:"or"`
+	Not *TriggerExpression  `yaml:"not"`
+	Contains string          `yaml:"contains"`
+}
+
 type Frontmatter struct {
-	Triggers []string `yaml:"triggers"`
+	Triggers TriggerExpression `yaml:"triggers"`
 }
 
 type Microagent struct {
@@ -85,12 +92,39 @@ func parseMicroagent(content []byte) (Microagent, error) {
 func (f *Finder) Find(prompt string) []Microagent {
 	var matchedAgents []Microagent
 	for _, agent := range f.microagents {
-		for _, trigger := range agent.Frontmatter.Triggers {
-			if strings.Contains(prompt, trigger) {
-				matchedAgents = append(matchedAgents, agent)
-				break
-			}
+		if matchExpression(prompt, agent.Frontmatter.Triggers) {
+			matchedAgents = append(matchedAgents, agent)
 		}
 	}
 	return matchedAgents
+}
+
+func matchExpression(prompt string, expr TriggerExpression) bool {
+	if expr.Contains != "" {
+		return strings.Contains(prompt, expr.Contains)
+	}
+
+	if len(expr.And) > 0 {
+		for _, e := range expr.And {
+			if !matchExpression(prompt, e) {
+				return false
+			}
+		}
+		return true
+	}
+
+	if len(expr.Or) > 0 {
+		for _, e := range expr.Or {
+			if matchExpression(prompt, e) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if expr.Not != nil {
+		return !matchExpression(prompt, *expr.Not)
+	}
+
+	return false
 }
