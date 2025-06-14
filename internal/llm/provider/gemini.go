@@ -473,7 +473,7 @@ func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	// Fallback to checking error message for rate limit indicators if not already identified
 	if !isRateLimit {
 		errMsg := err.Error()
-		if contains(errMsg, "rate limit", "quota exceeded", "too many requests") {
+		if contains(errMsg, "rate limit", "quota exceeded", "too many requests", "resource has been exhausted") {
 			isRateLimit = true
 		}
 	}
