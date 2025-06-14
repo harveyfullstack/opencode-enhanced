@@ -375,23 +375,23 @@ OpenCode's AI assistant has access to various tools to help with coding tasks:
 
 | Tool          | Description                 | Parameters                                                                               |
 | ------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
-| `glob`        | Find files by pattern       | `pattern` (required), `path` (optional)                                                  |
-| `grep`        | Search file contents        | `pattern` (required), `path` (optional), `include` (optional), `literal_text` (optional) |
-| `ls`          | List directory contents     | `path` (optional), `ignore` (optional array of patterns)                                 |
-| `view`        | View file contents          | `file_path` (required), `offset` (optional), `limit` (optional)                          |
-| `write`       | Write to files              | `file_path` (required), `content` (required)                                             |
-| `edit`        | Edit files                  | Various parameters for file editing                                                      |
-| `patch`       | Apply patches to files      | `file_path` (required), `diff` (required)                                                |
+| `glob`        | Find files by pattern (output hidden by default, terse indicator shown)       | `pattern` (required), `path` (optional)                                                  |
+| `grep`        | Search file contents (output hidden by default, terse indicator shown)        | `pattern` (required), `path` (optional), `include` (optional), `literal_text` (optional) |
+| `ls`          | List directory contents (output hidden by default, terse indicator shown)     | `path` (optional), `ignore` (optional array of patterns)                                 |
+| `view`        | View file contents (output hidden by default, terse indicator shown) | `file_path` (required), `offset` (optional), `limit` (optional)                          |
+| `write`       | Write to files (output hidden by default, terse indicator shown) | `file_path` (required), `content` (required)                                             |
+| `edit`        | Edit files (output hidden by default, terse indicator shown) | Various parameters for file editing                                                      |
+| `patch`       | Apply patches to files (output hidden by default, terse indicator shown) | `file_path` (required), `diff` (required)                                                |
 | `diagnostics` | Get diagnostics information | `file_path` (optional)                                                                   |
 
 ### Other Tools
 
 | Tool          | Description                            | Parameters                                                                                |
 | ------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `bash`        | Execute shell commands                 | `command` (required), `timeout` (optional)                                                |
-| `fetch`       | Fetch data from URLs                   | `url` (required), `format` (required), `timeout` (optional)                               |
-| `sourcegraph` | Search code across public repositories | `query` (required), `count` (optional), `context_window` (optional), `timeout` (optional) |
-| `agent`       | Run sub-tasks with the AI agent        | `prompt` (required)                                                                       |
+| `bash`        | Execute shell commands (output hidden by default, terse indicator shown) | `command` (required), `timeout` (optional)                                                |
+| `fetch`       | Fetch data from URLs (output hidden by default, terse indicator shown) | `url` (required), `format` (required), `timeout` (optional)                               |
+| `sourcegraph` | Search code across public repositories (output hidden by default, terse indicator shown) | `query` (required), `count` (optional), `context_window` (optional), `timeout` (optional) |
+| `agent`       | Run sub-tasks with the AI agent (output hidden by default, terse indicator shown)        | `prompt` (required)                                                                       |
 
 ## Architecture
 

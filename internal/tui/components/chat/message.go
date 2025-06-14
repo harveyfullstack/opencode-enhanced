@@ -455,84 +455,32 @@ func renderToolResponse(toolCall message.ToolCall, response message.ToolResult, 
 			Render(errContent)
 	}
 
-	resultContent := truncateHeight(response.Content, maxResultHeight)
+	// Hide tool output by default, only show a terse indicator
 	switch toolCall.Name {
 	case agent.AgentToolName:
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, false, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Task completed.")
 	case tools.BashToolName:
-		resultContent = fmt.Sprintf("```bash\n%s\n```", resultContent)
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, true, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Bash command executed.")
 	case tools.EditToolName:
-		metadata := tools.EditResponseMetadata{}
-		json.Unmarshal([]byte(response.Metadata), &metadata)
-		truncDiff := truncateHeight(metadata.Diff, maxResultHeight)
-		formattedDiff, _ := diff.FormatDiff(truncDiff, diff.WithTotalWidth(width))
-		return formattedDiff
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("File edited.")
 	case tools.FetchToolName:
-		var params tools.FetchParams
-		json.Unmarshal([]byte(toolCall.Input), &params)
-		mdFormat := "markdown"
-		switch params.Format {
-		case "text":
-			mdFormat = "text"
-		case "html":
-			mdFormat = "html"
-		}
-		resultContent = fmt.Sprintf("```%s\n%s\n```", mdFormat, resultContent)
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, true, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Content fetched.")
 	case tools.GlobToolName:
-		return baseStyle.Width(width).Foreground(t.TextMuted()).Render(resultContent)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Files found.")
 	case tools.GrepToolName:
-		return baseStyle.Width(width).Foreground(t.TextMuted()).Render(resultContent)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Content searched.")
 	case tools.LSToolName:
-		return baseStyle.Width(width).Foreground(t.TextMuted()).Render(resultContent)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Directory listed.")
 	case tools.SourcegraphToolName:
-		return baseStyle.Width(width).Foreground(t.TextMuted()).Render(resultContent)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Sourcegraph search completed.")
 	case tools.ViewToolName:
-		metadata := tools.ViewResponseMetadata{}
-		json.Unmarshal([]byte(response.Metadata), &metadata)
-		ext := filepath.Ext(metadata.FilePath)
-		if ext == "" {
-			ext = ""
-		} else {
-			ext = strings.ToLower(ext[1:])
-		}
-		resultContent = fmt.Sprintf("```%s\n%s\n```", ext, truncateHeight(metadata.Content, maxResultHeight))
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, true, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("File viewed.")
 	case tools.WriteToolName:
-		params := tools.WriteParams{}
-		json.Unmarshal([]byte(toolCall.Input), &params)
-		metadata := tools.WriteResponseMetadata{}
-		json.Unmarshal([]byte(response.Metadata), &metadata)
-		ext := filepath.Ext(params.FilePath)
-		if ext == "" {
-			ext = ""
-		} else {
-			ext = strings.ToLower(ext[1:])
-		}
-		resultContent = fmt.Sprintf("```%s\n%s\n```", ext, truncateHeight(params.Content, maxResultHeight))
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, true, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("File written.")
+	case tools.PatchToolName:
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Patch applied.")
 	default:
-		resultContent = fmt.Sprintf("```text\n%s\n```", resultContent)
-		return styles.ForceReplaceBackgroundWithLipgloss(
-			toMarkdown(resultContent, true, width),
-			t.Background(),
-		)
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Tool executed.")
 	}
 }
 
