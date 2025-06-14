@@ -148,6 +148,11 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return p, nil
 			}
 		}
+	case tea.MouseMsg:
+		// Pass mouse events to the messages component
+		m, cmd := p.messages.Update(msg)
+		p.messages = m.(layout.Container)
+		cmds = append(cmds, cmd)
 	}
 	if p.showCompletionDialog {
 		context, contextCmd := p.completionDialog.Update(msg)

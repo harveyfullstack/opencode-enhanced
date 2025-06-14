@@ -121,6 +121,7 @@ to assist developers in writing, debugging, and understanding code directly from
 		program := tea.NewProgram(
 			tui.New(app, restoreLastSession),
 			tea.WithAltScreen(),
+			tea.WithMouseAllMotion(),
 		)
 
 		// Setup the subscriptions, this will send services events to the TUI
