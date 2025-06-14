@@ -27,6 +27,10 @@ OpenCode is a Go-based CLI application that brings AI assistance to your termina
 - **File Change Tracking**: Track and visualize file changes during sessions
 - **External Editor Support**: Open your preferred editor for composing messages
 - **Named Arguments for Custom Commands**: Create powerful custom commands with multiple named placeholders
+- **Mouse Scroll Support**: Scroll through chat messages and tool outputs with your mouse
+- **Command History**: Navigate through your command history using arrow keys, with history saved per session
+- **Permission Dialog Removal**: Permission dialogues are no longer shown for automatically approved commands, streamlining the workflow.
+
 
 ## Installation
 
@@ -493,6 +497,39 @@ OpenCode includes several built-in commands:
 | ------------------ | --------------------------------------------------------------------------------------------------- |
 | Initialize Project | Creates or updates the OpenCode.md memory file with project-specific information                    |
 | Compact Session    | Manually triggers the summarization of the current session, creating a new session with the summary |
+
+## Microagents
+
+Microagents are small, context-aware markdown files that dynamically inject additional system messages into the AI's context based on your conversation. They allow you to provide the AI with specific instructions or information only when relevant, without cluttering the main prompt.
+
+### How Microagents Work
+
+1. **Triggering**: Microagents are triggered by specific keywords or patterns in your prompt, defined in their YAML frontmatter.
+2. **Context Injection**: When a microagent is triggered, its content is prepended as a system message to the AI's input, providing relevant context for the current turn.
+3. **Hidden from User**: The content of triggered microagents is hidden from the user in the TUI to maintain a clean conversation view.
+
+### Creating Microagents
+
+Microagents are Markdown files with a YAML frontmatter section defining their triggers. They are stored in the `.opencode/microagents/` directory within your project.
+
+Example `my-microagent.md`:
+
+```markdown
+---
+triggers:
+  contains: "bug fix"
+---
+You are an expert at debugging Go applications. When the user mentions "bug fix", provide detailed steps for debugging, including checking logs, using a debugger, and writing unit tests.
+```
+
+The `triggers` field supports the following logic:
+
+- `contains`: A string that must be present in the user's prompt to trigger the microagent.
+- `and`: A list of trigger expressions, all of which must be true.
+- `or`: A list of trigger expressions, at least one of which must be true.
+- `not`: A single trigger expression that must be false.
+
+You can combine these to create complex triggering logic.
 
 ## MCP (Model Context Protocol)
 
