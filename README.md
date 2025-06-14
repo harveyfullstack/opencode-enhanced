@@ -28,7 +28,6 @@ OpenCode is a Go-based CLI application that brings AI assistance to your termina
 - **External Editor Support**: Open your preferred editor for composing messages
 - **Named Arguments for Custom Commands**: Create powerful custom commands with multiple named placeholders
 - **Mouse Scroll Support**: Scroll through chat messages and tool outputs with your mouse
-- **Command History**: Navigate through your command history using arrow keys, with history saved per session
 - **Permission Dialog Removal**: Permission dialogues are no longer shown for automatically approved commands, streamlining the workflow.
 
 
