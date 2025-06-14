@@ -24,20 +24,18 @@ import (
 )
 
 type editorCmp struct {
-	width        int
-	height       int
-	app          *app.App
-	session      session.Session
-	textarea     textarea.Model
-	attachments  []message.Attachment
-	deleteMode bool
+	width       int
+	height      int
+	app         *app.App
+	session     session.Session
+	textarea    textarea.Model
+	attachments []message.Attachment
+	deleteMode  bool
 }
 
 type EditorKeyMaps struct {
 	Send       key.Binding
 	OpenEditor key.Binding
-	HistoryUp  key.Binding
-	HistoryDown key.Binding
 }
 
 type bluredEditorKeyMaps struct {
@@ -59,14 +57,6 @@ var editorMaps = EditorKeyMaps{
 	OpenEditor: key.NewBinding(
 		key.WithKeys("ctrl+e"),
 		key.WithHelp("ctrl+e", "open editor"),
-	),
-	HistoryUp: key.NewBinding(
-		key.WithKeys("up"),
-		key.WithHelp("up", "previous message"),
-	),
-	HistoryDown: key.NewBinding(
-		key.WithKeys("down"),
-		key.WithHelp("down", "next message"),
 	),
 }
 

@@ -18,7 +18,6 @@ type Session struct {
 	CompletionTokens int64
 	SummaryMessageID string
 	Cost             float64
-	History          []string
 	CreatedAt        int64
 	UpdatedAt        int64
 }
@@ -32,7 +31,6 @@ type Service interface {
 	List(ctx context.Context) ([]Session, error)
 	Save(ctx context.Context, session Session) (Session, error)
 	Delete(ctx context.Context, id string) error
-	CreateCommandHistory(ctx context.Context, sessionID, command string) error
 }
 
 type service struct {
@@ -94,32 +92,12 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *service) CreateCommandHistory(ctx context.Context, sessionID, command string) error {
-	_, err := s.q.CreateCommandHistory(ctx, db.CreateCommandHistoryParams{
-		ID:          uuid.New().String(),
-		SessionID:   sessionID,
-		CommandText: command,
-	})
-	return err
-}
-
 func (s *service) Get(ctx context.Context, id string) (Session, error) {
 	dbSession, err := s.q.GetSessionByID(ctx, id)
 	if err != nil {
 		return Session{}, err
 	}
-	session := s.fromDBItem(dbSession)
-
-	history, err := s.q.ListCommandHistoryBySession(ctx, id)
-	if err != nil {
-		return Session{}, err
-	}
-
-	for _, h := range history {
-		session.History = append(session.History, h.CommandText)
-	}
-
-	return session, nil
+	return s.fromDBItem(dbSession), nil
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
@@ -149,15 +127,7 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 	}
 	sessions := make([]Session, len(dbSessions))
 	for i, dbSession := range dbSessions {
-		session := s.fromDBItem(dbSession)
-		history, err := s.q.ListCommandHistoryBySession(ctx, session.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, h := range history {
-			session.History = append(session.History, h.CommandText)
-		}
-		sessions[i] = session
+		sessions[i] = s.fromDBItem(dbSession)
 	}
 	return sessions, nil
 }
@@ -172,7 +142,6 @@ func (s service) fromDBItem(item db.Session) Session {
 		CompletionTokens: item.CompletionTokens,
 		SummaryMessageID: item.SummaryMessageID.String,
 		Cost:             item.Cost,
-		History:          []string{},
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
 	}
