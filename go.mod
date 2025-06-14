@@ -3,6 +3,7 @@ module github.com/opencode-ai/opencode
 go 1.24.0
 
 require (
+	entgo.io/ent v0.14.4
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/PuerkitoBio/goquery v1.9.2
@@ -31,13 +32,10 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.0
 	github.com/stretchr/testify v1.10.0
+	google.golang.org/api v0.215.0
 )
 
-require (
-	entgo.io/ent v0.14.4 // indirect
-	github.com/sqlc-dev/sqlc v1.29.0 // indirect
-	modernc.org/sqlite v1.37.0 // indirect
-)
+require modernc.org/sqlite v1.37.0 // indirect
 
 require (
 	cloud.google.com/go v0.116.0 // indirect
@@ -131,5 +129,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/grpc v1.71.1 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )

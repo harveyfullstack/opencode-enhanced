@@ -14,6 +14,7 @@ import (
 	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/message"
 	"google.golang.org/genai"
+	"google.golang.org/api/googleapi"
 )
 
 type geminiOptions struct {
@@ -453,22 +454,40 @@ func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 		return false, 0, err
 	}
 
-	errMsg := err.Error()
+	var apiErr *googleapi.Error
 	isRateLimit := false
+	retryMs := 0
 
-	// Check for common rate limit error messages
-	if contains(errMsg, "rate limit", "quota exceeded", "too many requests") {
-		isRateLimit = true
+	if errors.As(err, &apiErr) {
+		if apiErr.Code == 429 {
+			isRateLimit = true
+			retryAfterValues := apiErr.Header.Values("Retry-After")
+			if len(retryAfterValues) > 0 {
+				if _, err := fmt.Sscanf(retryAfterValues[0], "%d", &retryMs); err == nil {
+					retryMs = retryMs * 1000 // Convert seconds to milliseconds
+				}
+			}
+		}
+	}
+
+	// Fallback to checking error message for rate limit indicators if not already identified
+	if !isRateLimit {
+		errMsg := err.Error()
+		if contains(errMsg, "rate limit", "quota exceeded", "too many requests") {
+			isRateLimit = true
+		}
 	}
 
 	if !isRateLimit {
 		return false, 0, err
 	}
 
-	// Calculate backoff with jitter
-	backoffMs := 2000 * (1 << (attempts - 1))
-	jitterMs := int(float64(backoffMs) * 0.2)
-	retryMs := backoffMs + jitterMs
+	// If retryMs was not set by Retry-After header, calculate backoff with jitter
+	if retryMs == 0 {
+		backoffMs := 10000 * (1 << (attempts - 1))
+		jitterMs := int(float64(backoffMs) * 0.2)
+		retryMs = backoffMs + jitterMs
+	}
 
 	return true, int64(retryMs), nil
 }
