@@ -107,29 +107,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case chat.SessionSelectedMsg:
 	
 		p.session = msg
-		p.history = msg.History
-		p.historyIndex = len(p.history)
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, keyMap.HistoryUp):
-			if p.historyIndex > 0 {
-				p.historyIndex--
-				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
-					Content: p.history[p.historyIndex],
-				}))
-			}
-		case key.Matches(msg, keyMap.HistoryDown):
-			if p.historyIndex < len(p.history)-1 {
-				p.historyIndex++
-				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
-					Content: p.history[p.historyIndex],
-				}))
-			} else if p.historyIndex == len(p.history)-1 {
-				p.historyIndex++
-				cmds = append(cmds, util.CmdHandler(chat.SetEditorContentMsg{
-					Content: "",
-				}))
-			}
 		case key.Matches(msg, keyMap.ShowCompletionDialog):
 			p.showCompletionDialog = true
 			// Continue sending keys to layout->chat
@@ -189,15 +168,7 @@ func (p *chatPage) sendMessage(text string, attachments []message.Attachment) te
 
 	}
 
-	// Add to history
-	if len(p.history) == 0 || p.history[len(p.history)-1] != text {
-		p.history = append(p.history, text)
-		p.app.Sessions.CreateCommandHistory(context.Background(), p.session.ID, text)
-	}
-	p.historyIndex = len(p.history)
-
 	if isNewSession {
-		p.session.History = p.history
 		cmds = append(cmds, util.CmdHandler(chat.SessionSelectedMsg(p.session)))
 	}
 
