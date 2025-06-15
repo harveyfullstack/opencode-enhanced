@@ -141,7 +141,7 @@ func (r *rewindDialogCmp) SetMessages(messages []message.Message) {
 	r.messages = messages
 	items := make([]utilComponents.SimpleListItem, 0, len(messages))
 	for _, msg := range messages {
-		if msg.Role == message.User && strings.TrimSpace(msg.GetTextContent()) != "" {
+		if msg.Role == message.User && strings.TrimSpace(msg.GetTextContent()) != "" && !msg.Hidden {
 			items = append(items, NewRewindItem(msg))
 		}
 	}
