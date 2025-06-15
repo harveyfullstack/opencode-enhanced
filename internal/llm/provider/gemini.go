@@ -347,32 +347,32 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 			for _, part := range lastMsg.Parts {
 				lastMsgParts = append(lastMsgParts, *part)
 			}
-			for resp, err := range chat.SendMessageStream(ctx, lastMsgParts...) {
-				if err != nil {
-					retry, after, retryErr := g.shouldRetry(attempts, err)
-					if retryErr != nil {
-						eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
-						return
-					}
-					if retry {
-						logging.WarnPersist(fmt.Sprintf("Retrying due to rate limit... attempt %d of %d", attempts, maxRetries), logging.PersistTimeArg, time.Millisecond*time.Duration(after+100))
-						select {
-						case <-ctx.Done():
-							if ctx.Err() != nil {
-								eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
-							}
-
+			StreamLoop:
+				for resp, err := range chat.SendMessageStream(ctx, lastMsgParts...) {
+					if err != nil {
+						retry, after, retryErr := g.shouldRetry(attempts, err)
+						if retryErr != nil {
+							eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
 							return
-						case <-time.After(time.Duration(after) * time.Millisecond):
-							break
 						}
-					} else {
-						eventChan <- ProviderEvent{Type: EventError, Error: err}
-						return
+						if retry {
+							logging.WarnPersist(fmt.Sprintf("Retrying due to rate limit... attempt %d of %d", attempts, maxRetries), logging.PersistTimeArg, time.Millisecond*time.Duration(after+100))
+							select {
+							case <-ctx.Done():
+								if ctx.Err() != nil {
+									eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+								}
+								return
+							case <-time.After(time.Duration(after) * time.Millisecond):
+							}
+							break StreamLoop
+						} else {
+							eventChan <- ProviderEvent{Type: EventError, Error: err}
+							return
+						}
 					}
-				}
 
-				finalResp = resp
+					finalResp = resp
 
 				if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
 					for _, part := range resp.Candidates[0].Content.Parts {
