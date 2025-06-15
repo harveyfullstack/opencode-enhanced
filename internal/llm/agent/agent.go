@@ -71,6 +71,8 @@ type agent struct {
 	summarizeProvider provider.Provider
 
 	activeRequests sync.Map
+	toolCallHistory map[string]int
+	lastToolCall    string
 }
 
 func NewAgent(
@@ -108,6 +110,8 @@ func NewAgent(
 		titleProvider:     titleProvider,
 		summarizeProvider: summarizeProvider,
 		activeRequests:    sync.Map{},
+		toolCallHistory:   make(map[string]int),
+		lastToolCall:    "", 
 	}
 
 	return agent, nil
@@ -342,12 +346,53 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		if agentMessage.FinishReason() == message.FinishReasonToolUse {
 			// We must have tool results here because of the check above.
 			toolUseRetryCount = 0 // Reset retry count on successful tool use
+
+			// Check for consecutive tool call loops
+			loopDetected := false
+			for _, toolCall := range agentMessage.ToolCalls() {
+				toolCallKey := toolCall.Name + ":" + toolCall.Input // Create a unique key including input
+				if toolCallKey == a.lastToolCall {
+					a.toolCallHistory[toolCallKey]++
+				} else {
+					// Reset history if the tool call is different
+					a.toolCallHistory = make(map[string]int)
+					a.toolCallHistory[toolCallKey] = 1
+					a.lastToolCall = toolCallKey
+				}
+
+				if a.toolCallHistory[toolCallKey] >= 2 {
+					logging.Info("Detected tool call loop", "tool", toolCall.Name, "input", toolCall.Input, "count", a.toolCallHistory[toolCallKey])
+					logging.Debug("Injecting hidden message due to tool call loop.")
+					hiddenMessage, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+						Role:  message.User,
+						Parts: []message.ContentPart{message.TextContent{Text: "This isn't working. Please try again with a different angle."}},
+						Hidden: true,
+					})
+					if err != nil {
+						return a.err(fmt.Errorf("failed to create hidden message for loop detection: %w", err))
+					}
+					msgHistory = append(msgHistory, hiddenMessage)
+					// Reset history after loop detection and message append
+					a.toolCallHistory = make(map[string]int) 
+					a.lastToolCall = ""
+					loopDetected = true
+					break // Break from inner tool call loop
+				}
+			}
+
+			if loopDetected {
+				continue // Continue outer loop to process the new hidden message, without appending the problematic tool call/results
+			}
+
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
 			continue
 		}
 
-		// If we are here, it's a final response.
-		toolUseRetryCount = 0 // Reset retry count if not a tool use
+		// If we are here, it's a final response (not a tool use).
+		toolUseRetryCount = 0 // Reset retry count
+		// Reset tool call history as the sequence of tool calls is broken by a final response.
+		a.toolCallHistory = make(map[string]int) 
+		a.lastToolCall = ""
 		return AgentEvent{
 			Type:    AgentEventTypeResponse,
 			Message: agentMessage,
