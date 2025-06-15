@@ -313,7 +313,7 @@ func setProviderDefaults() {
 	// Google Gemini configuration
 	if key := viper.GetString("providers.gemini.apiKey"); strings.TrimSpace(key) != "" {
 		viper.SetDefault("agents.coder.model", models.Gemini25)
-		viper.SetDefault("agents.summarizer.model", models.Gemini25)
+		viper.SetDefault("agents.summarizer.model", models.Gemini25Flash)
 		viper.SetDefault("agents.task.model", models.Gemini25Flash)
 		viper.SetDefault("agents.title.model", models.Gemini25Flash)
 		if baseURL := os.Getenv("GEMINI_BASE_URL"); strings.TrimSpace(baseURL) != "" {
