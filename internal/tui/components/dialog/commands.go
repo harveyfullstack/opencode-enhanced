@@ -19,6 +19,10 @@ type Command struct {
 	Handler     func(cmd Command) tea.Cmd
 }
 
+func (ci Command) GetValue() string {
+	return ci.ID
+}
+
 func (ci Command) Render(selected bool, width int) string {
 	t := theme.CurrentTheme()
 	baseStyle := styles.BaseStyle()

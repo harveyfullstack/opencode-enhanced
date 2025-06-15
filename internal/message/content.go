@@ -119,6 +119,19 @@ type Message struct {
 	Hidden    bool
 }
 
+// GetTextContent iterates through the Parts slice of the Message.
+// For each ContentPart, if it is of type TextContent, its Text field
+// is appended to a string. The method returns the concatenated string.
+func (m *Message) GetTextContent() string {
+	var text string
+	for _, part := range m.Parts {
+		if tc, ok := part.(TextContent); ok {
+			text += tc.Text
+		}
+	}
+	return text
+}
+
 func (m *Message) Content() TextContent {
 	for _, part := range m.Parts {
 		if c, ok := part.(TextContent); ok {

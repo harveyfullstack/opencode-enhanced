@@ -40,3 +40,7 @@ WHERE id = ?;
 -- name: DeleteSessionMessages :exec
 DELETE FROM messages
 WHERE session_id = ?;
+
+-- name: DeleteMessagesFromID :exec
+DELETE FROM messages
+WHERE messages.session_id = ? AND messages.created_at >= (SELECT created_at FROM messages AS m2 WHERE m2.id = ?);

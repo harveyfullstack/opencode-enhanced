@@ -39,6 +39,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteMessageStmt, err = db.PrepareContext(ctx, deleteMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteMessage: %w", err)
 	}
+	if q.deleteMessagesFromIDStmt, err = db.PrepareContext(ctx, deleteMessagesFromID); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteMessagesFromID: %w", err)
+	}
 	if q.deleteSessionStmt, err = db.PrepareContext(ctx, deleteSession); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteSession: %w", err)
 	}
@@ -115,6 +118,11 @@ func (q *Queries) Close() error {
 	if q.deleteMessageStmt != nil {
 		if cerr := q.deleteMessageStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteMessageStmt: %w", cerr)
+		}
+	}
+	if q.deleteMessagesFromIDStmt != nil {
+		if cerr := q.deleteMessagesFromIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteMessagesFromIDStmt: %w", cerr)
 		}
 	}
 	if q.deleteSessionStmt != nil {
@@ -241,6 +249,7 @@ type Queries struct {
 	createSessionStmt           *sql.Stmt
 	deleteFileStmt              *sql.Stmt
 	deleteMessageStmt           *sql.Stmt
+	deleteMessagesFromIDStmt    *sql.Stmt
 	deleteSessionStmt           *sql.Stmt
 	deleteSessionFilesStmt      *sql.Stmt
 	deleteSessionMessagesStmt   *sql.Stmt
@@ -268,6 +277,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createSessionStmt:           q.createSessionStmt,
 		deleteFileStmt:              q.deleteFileStmt,
 		deleteMessageStmt:           q.deleteMessageStmt,
+		deleteMessagesFromIDStmt:    q.deleteMessagesFromIDStmt,
 		deleteSessionStmt:           q.deleteSessionStmt,
 		deleteSessionFilesStmt:      q.deleteSessionFilesStmt,
 		deleteSessionMessagesStmt:   q.deleteSessionMessagesStmt,

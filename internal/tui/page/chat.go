@@ -13,6 +13,7 @@ import (
 	"github.com/opencode-ai/opencode/internal/session"
 	"github.com/opencode-ai/opencode/internal/tui/components/chat"
 	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
+	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/tui/layout"
 	"github.com/opencode-ai/opencode/internal/tui/util"
 )
@@ -27,6 +28,8 @@ type chatPage struct {
 	session              session.Session
 	completionDialog     dialog.CompletionDialog
 	showCompletionDialog bool
+	rewindDialog         dialog.RewindDialog
+	showRewindDialog     bool
 	history              []string
 	historyIndex         int
 }
@@ -37,6 +40,7 @@ type ChatKeyMap struct {
 	Cancel               key.Binding
 	HistoryUp            key.Binding
 	HistoryDown          key.Binding
+	RewindSession        key.Binding
 }
 
 var keyMap = ChatKeyMap{
@@ -59,6 +63,10 @@ var keyMap = ChatKeyMap{
 	HistoryDown: key.NewBinding(
 		key.WithKeys("down"),
 		key.WithHelp("down", "next message"),
+	),
+	RewindSession: key.NewBinding(
+		key.WithKeys("ctrl+r"),
+		key.WithHelp("ctrl+r", "rewind session"),
 	),
 }
 
@@ -126,7 +134,27 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				p.app.CoderAgent.Cancel(p.session.ID)
 				return p, nil
 			}
+		case key.Matches(msg, keyMap.RewindSession):
+			if p.session.ID != "" {
+				logging.Debug("Ctrl+M pressed, attempting to show rewind dialog")
+				messages, err := p.app.Messages.List(context.Background(), p.session.ID)
+				if err != nil {
+					logging.Error("Failed to list messages for rewind dialog", "error", err)
+					return p, util.ReportError(err)
+				}
+				p.rewindDialog.SetMessages(messages)
+				p.showRewindDialog = true
+				logging.Debug("Rewind dialog set to visible", "message_count", len(messages))
+			}
 		}
+	case dialog.RewindSelectedMsg:
+		cmd := p.rewindSession(msg.MessageID)
+		if cmd != nil {
+			return p, cmd
+		}
+		p.showRewindDialog = false
+	case dialog.RewindDialogCloseMsg:
+		p.showRewindDialog = false
 	case tea.MouseMsg:
 		// Pass mouse events to the messages component
 		m, cmd := p.messages.Update(msg)
@@ -144,6 +172,10 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return p, tea.Batch(cmds...)
 			}
 		}
+	} else if p.showRewindDialog {
+		context, contextCmd := p.rewindDialog.Update(msg)
+		p.rewindDialog = context.(dialog.RewindDialog)
+		cmds = append(cmds, contextCmd)
 	}
 
 	u, cmd := p.layout.Update(msg)
@@ -179,6 +211,17 @@ func (p *chatPage) sendMessage(text string, attachments []message.Attachment) te
 	return tea.Batch(cmds...)
 }
 
+func (p *chatPage) rewindSession(messageID string) tea.Cmd {
+	err := p.app.Messages.DeleteFromID(context.Background(), p.session.ID, messageID)
+	if err != nil {
+		return util.ReportError(err)
+	}
+	// After deleting messages, we might want to refresh the view or send a notification.
+	// For now, returning nil. A command to update message list could be added here if needed,
+	// e.g., return util.CmdHandler(chat.MessagesChangedMsg{})
+	return nil
+}
+
 func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	return p.layout.SetSize(width, height)
 }
@@ -204,6 +247,20 @@ func (p *chatPage) View() string {
 			layoutView,
 			false,
 		)
+	} else if p.showRewindDialog {
+		_, layoutHeight := p.layout.GetSize()
+		editorWidth, editorHeight := p.editor.GetSize()
+
+		p.rewindDialog.SetWidth(editorWidth)
+		overlay := p.rewindDialog.View()
+
+		layoutView = layout.PlaceOverlay(
+			0,
+			layoutHeight-editorHeight-lipgloss.Height(overlay),
+			overlay,
+			layoutView,
+			false,
+		)
 	}
 
 	return layoutView
@@ -213,12 +270,14 @@ func (p *chatPage) BindingKeys() []key.Binding {
 	bindings := layout.KeyMapToSlice(keyMap)
 	bindings = append(bindings, p.messages.BindingKeys()...)
 	bindings = append(bindings, p.editor.BindingKeys()...)
+	bindings = append(bindings, p.rewindDialog.BindingKeys()...)
 	return bindings
 }
 
 func NewChatPage(app *app.App) tea.Model {
 	cg := completions.NewFileAndFolderContextGroup()
 	completionDialog := dialog.NewCompletionDialogCmp(cg)
+	rewindDialog := dialog.NewRewindDialogCmp()
 
 	messagesContainer := layout.NewContainer(
 		chat.NewMessagesCmp(app),
@@ -233,6 +292,7 @@ func NewChatPage(app *app.App) tea.Model {
 		editor:           editorContainer,
 		messages:         messagesContainer,
 		completionDialog: completionDialog,
+		rewindDialog:     rewindDialog,
 		layout: layout.NewSplitPane(
 			layout.WithLeftPanel(messagesContainer),
 			layout.WithBottomPanel(editorContainer),

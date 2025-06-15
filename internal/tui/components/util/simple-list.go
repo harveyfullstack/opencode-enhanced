@@ -11,6 +11,7 @@ import (
 
 type SimpleListItem interface {
 	Render(selected bool, width int) string
+	GetValue() string
 }
 
 type SimpleList[T SimpleListItem] interface {
