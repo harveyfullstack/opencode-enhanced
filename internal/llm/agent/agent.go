@@ -365,7 +365,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 					logging.Debug("Injecting hidden message due to tool call loop.")
 					hiddenMessage, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 						Role:  message.User,
-						Parts: []message.ContentPart{message.TextContent{Text: "This isn't working. Please try again with a different angle."}},
+						Parts: []message.ContentPart{message.TextContent{Text: "You seem to be stuck in a loop. Stop the tool call and evaluate the best course of action."}},
 						Hidden: true,
 					})
 					if err != nil {
