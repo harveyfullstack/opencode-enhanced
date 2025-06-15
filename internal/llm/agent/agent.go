@@ -314,6 +314,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
 
+	lastResponseWasToolOnly := false
 	toolUseRetryCount := 0
 	for {
 		// Check for cancellation before each iteration
@@ -323,6 +324,21 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		default:
 			// Continue processing
 		}
+
+		if lastResponseWasToolOnly {
+			logging.Debug("Last response was tool only, injecting prompt for summary/next step.", "sessionID", sessionID)
+			hiddenMessage, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+				Role:   message.User,
+				Parts:  []message.ContentPart{message.TextContent{Text: "You have executed a tool. Please provide a concise summary of your actions or a clear next step."}},
+				Hidden: true,
+			})
+			if err != nil {
+				return a.err(fmt.Errorf("failed to create hidden message after tool use: %w", err))
+			}
+			msgHistory = append(msgHistory, hiddenMessage)
+			lastResponseWasToolOnly = false
+		}
+
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -385,18 +401,47 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			}
 
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
+
+			// Publish the tool results message to the TUI
+			a.Publish(pubsub.CreatedEvent, AgentEvent{
+				Type:    AgentEventTypeResponse,
+				Message: *toolResults,
+				Done:    false, // Not the final response, just a tool output
+			})
+
+			lastResponseWasToolOnly = true
 			continue
 		}
 
 		// If we are here, it's a final response (not a tool use).
 		toolUseRetryCount = 0 // Reset retry count
 		// Reset tool call history as the sequence of tool calls is broken by a final response.
-		a.toolCallHistory = make(map[string]int) 
+		a.toolCallHistory = make(map[string]int)
 		a.lastToolCall = ""
-		return AgentEvent{
-			Type:    AgentEventTypeResponse,
-			Message: agentMessage,
-			Done:    true,
+
+		if agentMessage.Content().Text == "" {
+			// Not a tool use, and text is empty.
+			// Create a hidden message prompting for clarification and continue the loop.
+			logging.Info("LLM returned an empty non-tool-use response. Injecting a prompt for clarification.", "sessionID", sessionID)
+			hiddenMessage, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+				Role:   message.User,
+				Parts:  []message.ContentPart{message.TextContent{Text: "Your last response was empty. Please provide a concise summary of your actions or a clear next step."}},
+				Hidden: true,
+			})
+			if err != nil {
+				return a.err(fmt.Errorf("failed to create hidden message for empty response: %w", err))
+			}
+			msgHistory = append(msgHistory, hiddenMessage)
+			lastResponseWasToolOnly = false
+			continue // Re-process with the new prompt.
+		} else {
+			// If we reach here, it's a non-tool-use response with content. This is a valid final response.
+			lastResponseWasToolOnly = false
+			return AgentEvent{
+				Type:    AgentEventTypeResponse,
+				Message: agentMessage,
+				Done:    true,
+			}
 		}
 	}
 }
