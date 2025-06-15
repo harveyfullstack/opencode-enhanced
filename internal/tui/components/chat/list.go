@@ -24,7 +24,7 @@ type cacheItem struct {
 	width   int
 	content []uiMessage
 }
-type messagesCmp struct {
+type MessagesCmp struct {
 	app           *app.App
 	width, height int
 	viewport      viewport.Model
@@ -38,6 +38,9 @@ type messagesCmp struct {
 	attachments   viewport.Model
 }
 type renderFinishedMsg struct{}
+
+// RefreshMessagesMsg is a message to explicitly refresh the messages list.
+type RefreshMessagesMsg struct{}
 
 type MessageKeys struct {
 	PageDown     key.Binding
@@ -65,11 +68,16 @@ var messageKeys = MessageKeys{
 	),
 }
 
-func (m *messagesCmp) Init() tea.Cmd {
+// RefreshMessagesCmd returns a command that sends a RefreshMessagesMsg.
+func RefreshMessagesCmd() tea.Cmd {
+	return func() tea.Msg { return RefreshMessagesMsg{} }
+}
+
+func (m *MessagesCmp) Init() tea.Cmd {
 	return tea.Batch(m.viewport.Init(), m.spinner.Tick)
 }
 
-func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *MessagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case dialog.ThemeChangedMsg:
@@ -103,6 +111,26 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case renderFinishedMsg:
 		m.rendering = false
 		m.viewport.GotoBottom()
+	case RefreshMessagesMsg:
+		if m.session.ID == "" {
+			return m, nil
+		}
+		messages, err := m.app.Messages.List(context.Background(), m.session.ID)
+		if err != nil {
+			return m, util.ReportError(err)
+		}
+		m.messages = messages
+		m.cachedContent = make(map[string]cacheItem) // Clear cache
+		if len(m.messages) > 0 {
+			m.currentMsgID = m.messages[len(m.messages)-1].ID
+		} else {
+			m.currentMsgID = ""
+		}
+		m.rendering = true
+		return m, func() tea.Msg {
+			m.renderView()
+			return renderFinishedMsg{}
+		}
 	case pubsub.Event[session.Session]:
 		if msg.Type == pubsub.UpdatedEvent && msg.Payload.ID == m.session.ID {
 			m.session = msg.Payload
@@ -172,7 +200,7 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *messagesCmp) IsAgentWorking() bool {
+func (m *MessagesCmp) IsAgentWorking() bool {
 	return m.app.CoderAgent.IsSessionBusy(m.session.ID)
 }
 
@@ -188,7 +216,7 @@ func formatTimeDifference(unixTime1, unixTime2 int64) string {
 	return fmt.Sprintf("%dm%ds", minutes, seconds)
 }
 
-func (m *messagesCmp) renderView() {
+func (m *MessagesCmp) renderView() {
 	m.uiMessages = make([]uiMessage, 0)
 	pos := 0
 	baseStyle := styles.BaseStyle()
@@ -269,7 +297,7 @@ func (m *messagesCmp) renderView() {
 	)
 }
 
-func (m *messagesCmp) View() string {
+func (m *MessagesCmp) View() string {
 	baseStyle := styles.BaseStyle()
 
 	if m.rendering {
@@ -352,7 +380,7 @@ func hasUnfinishedToolCalls(messages []message.Message) bool {
 	return false
 }
 
-func (m *messagesCmp) working() string {
+func (m *MessagesCmp) working() string {
 	text := ""
 	if m.IsAgentWorking() && len(m.messages) > 0 {
 		t := theme.CurrentTheme()
@@ -378,7 +406,7 @@ func (m *messagesCmp) working() string {
 	return text
 }
 
-func (m *messagesCmp) help() string {
+func (m *MessagesCmp) help() string {
 	t := theme.CurrentTheme()
 	baseStyle := styles.BaseStyle()
 
@@ -407,7 +435,7 @@ func (m *messagesCmp) help() string {
 		Render(text)
 }
 
-func (m *messagesCmp) initialScreen() string {
+func (m *MessagesCmp) initialScreen() string {
 	baseStyle := styles.BaseStyle()
 
 	return baseStyle.Width(m.width).Render(
@@ -420,14 +448,14 @@ func (m *messagesCmp) initialScreen() string {
 	)
 }
 
-func (m *messagesCmp) rerender() {
+func (m *MessagesCmp) rerender() {
 	for _, msg := range m.messages {
 		delete(m.cachedContent, msg.ID)
 	}
 	m.renderView()
 }
 
-func (m *messagesCmp) SetSize(width, height int) tea.Cmd {
+func (m *MessagesCmp) SetSize(width, height int) tea.Cmd {
 	if m.width == width && m.height == height {
 		return nil
 	}
@@ -441,11 +469,11 @@ func (m *messagesCmp) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
-func (m *messagesCmp) GetSize() (int, int) {
+func (m *MessagesCmp) GetSize() (int, int) {
 	return m.width, m.height
 }
 
-func (m *messagesCmp) SetSession(session session.Session) tea.Cmd {
+func (m *MessagesCmp) SetSession(session session.Session) tea.Cmd {
 	if m.session.ID == session.ID {
 		return nil
 	}
@@ -466,7 +494,7 @@ func (m *messagesCmp) SetSession(session session.Session) tea.Cmd {
 	}
 }
 
-func (m *messagesCmp) BindingKeys() []key.Binding {
+func (m *MessagesCmp) BindingKeys() []key.Binding {
 	return []key.Binding{
 		m.viewport.KeyMap.PageDown,
 		m.viewport.KeyMap.PageUp,
@@ -475,7 +503,7 @@ func (m *messagesCmp) BindingKeys() []key.Binding {
 	}
 }
 
-func NewMessagesCmp(app *app.App) tea.Model {
+func NewMessagesCmp(app *app.App) *MessagesCmp {
 	s := spinner.New()
 	s.Spinner = spinner.Pulse
 	vp := viewport.New(0, 0)
@@ -484,7 +512,7 @@ func NewMessagesCmp(app *app.App) tea.Model {
 	vp.KeyMap.PageDown = messageKeys.PageDown
 	vp.KeyMap.HalfPageUp = messageKeys.HalfPageUp
 	vp.KeyMap.HalfPageDown = messageKeys.HalfPageDown
-	return &messagesCmp{
+	return &MessagesCmp{
 		app:           app,
 		cachedContent: make(map[string]cacheItem),
 		viewport:      vp,

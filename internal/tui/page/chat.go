@@ -150,7 +150,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dialog.RewindSelectedMsg:
 		cmd := p.rewindSession(msg.MessageID)
 		if cmd != nil {
-			return p, cmd
+			// return p, cmd // This was returning early, preventing batching.
+			cmds = append(cmds, cmd)
 		}
 		p.showRewindDialog = false
 	case dialog.RewindDialogCloseMsg:
@@ -212,13 +213,37 @@ func (p *chatPage) sendMessage(text string, attachments []message.Attachment) te
 }
 
 func (p *chatPage) rewindSession(messageID string) tea.Cmd {
+	var cmds []tea.Cmd
 	err := p.app.Messages.DeleteFromID(context.Background(), p.session.ID, messageID)
 	if err != nil {
 		return util.ReportError(err)
 	}
+
+	updatedSession, err := p.app.Sessions.Get(context.Background(), p.session.ID)
+	if err != nil {
+		return util.ReportError(err)
+	}
+	p.session = updatedSession
+	cmds = append(cmds, chat.RefreshMessagesCmd())
+
 	// After deleting messages, we might want to refresh the view or send a notification.
 	// For now, returning nil. A command to update message list could be added here if needed,
 	// e.g., return util.CmdHandler(chat.MessagesChangedMsg{})
+
+	// Refresh the messages displayed in the chat
+	contentModel := p.messages.GetContentModel()
+	if messagesCmp, ok := contentModel.(*chat.MessagesCmp); ok {
+		cmd := messagesCmp.SetSession(p.session)
+		cmds = append(cmds, cmd)
+	} else {
+		// This case should ideally not happen if the component is set up correctly.
+		// Handle error or log, depending on application's error handling strategy.
+		logging.Error("Failed to type assert content model to *chat.MessagesCmp in rewindSession")
+	}
+
+	if len(cmds) > 0 {
+		return tea.Batch(cmds...)
+	}
 	return nil
 }
 
