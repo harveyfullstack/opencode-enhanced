@@ -3,6 +3,8 @@ package dialog
 import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/opencode-ai/opencode/internal/message"
 	utilComponents "github.com/opencode-ai/opencode/internal/tui/components/util"
@@ -137,9 +139,11 @@ func (r *rewindDialogCmp) SetWidth(width int) {
 
 func (r *rewindDialogCmp) SetMessages(messages []message.Message) {
 	r.messages = messages
-	items := make([]utilComponents.SimpleListItem, len(messages))
-	for i, msg := range messages {
-		items[i] = NewRewindItem(msg)
+	items := make([]utilComponents.SimpleListItem, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Role == message.User && strings.TrimSpace(msg.GetTextContent()) != "" {
+			items = append(items, NewRewindItem(msg))
+		}
 	}
 	r.listView.SetItems(items)
 }
