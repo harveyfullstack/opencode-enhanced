@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/tui/layout"
 	"github.com/opencode-ai/opencode/internal/tui/styles"
@@ -21,10 +22,29 @@ type DetailComponent interface {
 	layout.Bindings
 }
 
+type HideFullLogMsg struct{}
+
+type fullLogKeyMap struct {
+	Enter key.Binding
+	Escape key.Binding
+}
+
+func (k fullLogKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Enter, k.Escape}
+}
+
+func (k fullLogKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{
+		k.Enter,
+		k.Escape,
+	}}
+}
+
 type detailCmp struct {
 	width, height int
 	currentLog    logging.LogMessage
 	viewport      viewport.Model
+	keys          fullLogKeyMap
 }
 
 func (i *detailCmp) Init() tea.Cmd {
@@ -37,15 +57,28 @@ func (i *detailCmp) Init() tea.Cmd {
 }
 
 func (i *detailCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case ShowFullLogMsg:
+		if msg.ID != i.currentLog.ID {
+			i.currentLog = logging.LogMessage(msg)
+			i.updateContent()
+		}
 	case selectedLogMsg:
 		if msg.ID != i.currentLog.ID {
 			i.currentLog = logging.LogMessage(msg)
 			i.updateContent()
 		}
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, i.keys.Enter), key.Matches(msg, i.keys.Escape):
+			return i, func() tea.Msg { return HideFullLogMsg{} }
+		}
 	}
 
-	return i, nil
+	// This line was missing in the previous iteration, causing key events not to be processed by the viewport
+	i.viewport, cmd = i.viewport.Update(msg)
+	return i, cmd
 }
 
 func (i *detailCmp) updateContent() {
@@ -70,7 +103,7 @@ func (i *detailCmp) updateContent() {
 	messageStyle := lipgloss.NewStyle().Bold(true).Foreground(t.Text())
 	content.WriteString(messageStyle.Render("Message:"))
 	content.WriteString("\n")
-	content.WriteString(lipgloss.NewStyle().Padding(0, 2).Render(i.currentLog.Message))
+	content.WriteString(lipgloss.NewStyle().Padding(0, 2).Width(i.width - 4).Render(wordwrap.String(i.currentLog.Message, i.width - 4)))
 	content.WriteString("\n\n")
 
 	// Attributes section
@@ -88,7 +121,7 @@ func (i *detailCmp) updateContent() {
 				keyStyle.Render(attr.Key),
 				valueStyle.Render(attr.Value),
 			)
-			content.WriteString(lipgloss.NewStyle().Padding(0, 2).Render(attrLine))
+			content.WriteString(lipgloss.NewStyle().Padding(0, 2).Width(i.width - 4).Render(wordwrap.String(attrLine, i.width - 4)))
 			content.WriteString("\n")
 		}
 	}
@@ -128,16 +161,20 @@ func (i *detailCmp) SetSize(width int, height int) tea.Cmd {
 	i.height = height
 	i.viewport.Width = i.width
 	i.viewport.Height = i.height
-	i.updateContent()
+		i.updateContent()
 	return nil
 }
 
 func (i *detailCmp) BindingKeys() []key.Binding {
-	return layout.KeyMapToSlice(i.viewport.KeyMap)
+	return i.keys.ShortHelp()
 }
 
 func NewLogsDetails() DetailComponent {
 	return &detailCmp{
 		viewport: viewport.New(0, 0),
+		keys: fullLogKeyMap{
+			Enter: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "exit full view")),
+			Escape: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "exit full view")),
+		},
 	}
 }

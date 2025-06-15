@@ -26,6 +26,7 @@ type tableCmp struct {
 }
 
 type selectedLogMsg logging.LogMessage
+type ShowFullLogMsg logging.LogMessage
 
 func (i *tableCmp) Init() tea.Cmd {
 	i.setRows()
@@ -34,7 +35,24 @@ func (i *tableCmp) Init() tea.Cmd {
 
 func (i *tableCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	switch msg.(type) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			selectedRow := i.table.SelectedRow()
+			if selectedRow != nil {
+				var log logging.LogMessage
+				for _, row := range logging.List() {
+					if row.ID == selectedRow[0] {
+						log = row
+						break
+					}
+				}
+				if log.ID != "" {
+					return i, util.CmdHandler(ShowFullLogMsg(log))
+				}
+			}
+		}
 	case pubsub.Event[logging.LogMessage]:
 		i.setRows()
 		return i, nil
