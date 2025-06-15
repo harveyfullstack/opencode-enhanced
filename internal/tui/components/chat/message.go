@@ -456,10 +456,10 @@ func renderToolResponse(toolCall message.ToolCall, response message.ToolResult, 
 
 	// Hide tool output by default, only show a terse indicator
 	switch toolCall.Name {
+	case tools.BashToolName:
+		return baseStyle.Width(width).Foreground(t.TextMuted()).Render(response.Content)
 	case agent.AgentToolName:
 		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Task completed.")
-	case tools.BashToolName:
-		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("Bash command executed.")
 	case tools.EditToolName:
 		return baseStyle.Width(width).Foreground(t.TextMuted()).Render("File edited.")
 	case tools.FetchToolName:
