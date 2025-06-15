@@ -205,6 +205,7 @@ func TestLsTool_Run(t *testing.T) {
 		assert.Contains(t, response.Content, "dir1")
 		assert.Contains(t, response.Content, "file1.txt")
 	})
+}
 
 func setupTestConfig(t *testing.T, tempDir string) func() {
 	// Create a temporary config file
