@@ -321,6 +321,7 @@ The output format is implemented as a strongly-typed `OutputFormat` in the codeb
 | Shortcut | Action                                  |
 | -------- | --------------------------------------- |
 | `Ctrl+N` | Create new session                      |
+| `Ctrl+R` | Rewind session (delete messages)        |
 | `Ctrl+X` | Cancel current operation/generation     |
 | `i`      | Focus editor (when not in writing mode) |
 | `Esc`    | Exit writing mode and focus messages    |
