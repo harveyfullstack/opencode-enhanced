@@ -124,10 +124,15 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			p.session = session.Session{}
 			p.history = []string{}
 			p.historyIndex = 0
+			p.showRewindDialog = false // Hide rewind dialog on new session
 			return p, tea.Batch(
 				util.CmdHandler(chat.SessionClearedMsg{}),
 			)
 		case key.Matches(msg, keyMap.Cancel):
+			if p.showRewindDialog {
+				p.showRewindDialog = false
+				return p, nil
+			}
 			if p.session.ID != "" {
 				// Cancel the current session's generation process
 				// This allows users to interrupt long-running operations
@@ -135,6 +140,10 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return p, nil
 			}
 		case key.Matches(msg, keyMap.RewindSession):
+			if p.showRewindDialog {
+				p.showRewindDialog = false
+				return p, nil
+			}
 			if p.session.ID != "" {
 				logging.Debug("Ctrl+M pressed, attempting to show rewind dialog")
 				messages, err := p.app.Messages.List(context.Background(), p.session.ID)
