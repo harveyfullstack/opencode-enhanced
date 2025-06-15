@@ -282,7 +282,11 @@ func renderParams(paramsWidth int, params ...string) string {
 	}
 	mainParam := params[0]
 	if len(mainParam) > paramsWidth {
-		mainParam = mainParam[:paramsWidth-3] + "..."
+		if paramsWidth > 3 {
+			mainParam = mainParam[:paramsWidth-3] + "..."
+		} else {
+			mainParam = mainParam[:paramsWidth]
+		}
 	}
 
 	if len(params) == 1 {
