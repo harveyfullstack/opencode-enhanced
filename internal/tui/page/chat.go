@@ -292,9 +292,10 @@ func (p *chatPage) View() string {
 }
 
 func (p *chatPage) BindingKeys() []key.Binding {
-	bindings := layout.KeyMapToSlice(keyMap)
+	var bindings []key.Binding
 	bindings = append(bindings, p.messages.BindingKeys()...)
 	bindings = append(bindings, p.editor.BindingKeys()...)
+	bindings = append(bindings, layout.KeyMapToSlice(keyMap)...)
 	bindings = append(bindings, p.rewindDialog.BindingKeys()...)
 	return bindings
 }
